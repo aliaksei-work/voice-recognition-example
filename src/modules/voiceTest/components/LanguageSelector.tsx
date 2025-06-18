@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Language } from '../hooks/useVoiceRecognition';
+import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import {Language} from '../hooks/useVoiceRecognition';
 
 interface LanguageSelectorProps {
   selectedLanguage: Language;
@@ -8,9 +8,9 @@ interface LanguageSelectorProps {
   isListening?: boolean;
 }
 
-const languages: { value: Language; label: string; flag: string }[] = [
-  { value: 'en-US', label: 'English', flag: '🇺🇸' },
-  { value: 'ru-RU', label: 'Русский', flag: '🇷🇺' },
+const languages: {value: Language; label: string; flag: string}[] = [
+  {value: 'en-US', label: 'English', flag: '🇺🇸'},
+  {value: 'ru-RU', label: 'Русский', flag: '🇷🇺'},
 ];
 
 export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
@@ -22,7 +22,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     <View style={styles.container}>
       <Text style={styles.title}>Select Language</Text>
       <View style={styles.languageGrid}>
-        {languages.map((language) => (
+        {languages.map(language => (
           <TouchableOpacity
             key={language.value}
             style={[
@@ -32,15 +32,14 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
             ]}
             onPress={() => onLanguageChange(language.value)}
             disabled={isListening}
-            activeOpacity={0.7}
-          >
+            activeOpacity={0.7}>
             <Text style={styles.flag}>{language.flag}</Text>
             <Text
               style={[
                 styles.languageText,
-                selectedLanguage === language.value && styles.selectedLanguageText,
-              ]}
-            >
+                selectedLanguage === language.value &&
+                  styles.selectedLanguageText,
+              ]}>
               {language.label}
             </Text>
           </TouchableOpacity>
@@ -98,4 +97,4 @@ const styles = StyleSheet.create({
   selectedLanguageText: {
     color: '#ffffff',
   },
-}); 
+});
