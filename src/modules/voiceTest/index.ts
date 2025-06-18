@@ -1,4 +1,4 @@
-export { default as VoiceTest } from './VoiceTest';
+export { default as VoiceTest } from './VoiceTestFuncComp';
 export { VoiceHeader } from './components/VoiceHeader';
 export { VoiceStatus } from './components/VoiceStatus';
 export { VoiceControls } from './components/VoiceControls';
