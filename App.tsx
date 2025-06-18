@@ -20,8 +20,6 @@ GoogleSignin.configure({
 export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
-  console.log('App render - accessToken:', accessToken);
-
   if (!accessToken) {
     return <GoogleAuthScreen onAuth={setAccessToken} />;
   }

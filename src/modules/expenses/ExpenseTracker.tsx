@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {StyleSheet, ScrollView, SafeAreaView, View} from 'react-native';
+import {StyleSheet, ScrollView, SafeAreaView, View, ActivityIndicator, Text} from 'react-native';
 import {
   useVoiceRecognition,
   Language,
@@ -16,15 +16,32 @@ import {ProcessingStatus} from './components/ProcessingStatus';
 import {ExpenseStats} from './components/ExpenseStats';
 import {ExpenseHistory} from './components/ExpenseHistory';
 import {ModeSelector, AppMode} from './components/ModeSelector';
+import {SpreadsheetLink} from './components/SpreadsheetLink';
+import { useSpreadsheetId } from './hooks/useSpreadsheetId';
+import { useCreateSpreadsheet } from './hooks/useCreateSpreadsheet';
 
 interface ExpenseTrackerProps {
   googleAccessToken?: string;
   spreadsheetId?: string;
 }
 
-const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spreadsheetId }) => {
+const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spreadsheetId: propSpreadsheetId }) => {
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('ru-RU');
   const [currentMode, setCurrentMode] = useState<AppMode>('add');
+
+  const { spreadsheetId, setSpreadsheetId, loading: idLoading } = useSpreadsheetId();
+  const { createSpreadsheet, loading: createLoading, error: createError } = useCreateSpreadsheet(googleAccessToken);
+
+  React.useEffect(() => {
+    if (!idLoading && !spreadsheetId && googleAccessToken) {
+      (async () => {
+        const created = await createSpreadsheet();
+        if (created?.spreadsheetId) {
+          setSpreadsheetId(created.spreadsheetId);
+        }
+      })();
+    }
+  }, [idLoading, spreadsheetId, googleAccessToken, createSpreadsheet, setSpreadsheetId]);
 
   const {state, startRecognizing, stopRecognizing} =
     useVoiceRecognition(selectedLanguage);
@@ -40,7 +57,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
     getCategoryTotal,
     getCategoryDateTotal,
     getCategories,
-  } = useExpenses(googleAccessToken, spreadsheetId);
+  } = useExpenses(googleAccessToken, spreadsheetId || propSpreadsheetId);
 
   const {processVoiceInput, isProcessing, processingError} =
     useVoiceExpenseRecognition(addExpense);
@@ -112,7 +129,18 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
   return (
     <SafeAreaView style={styles.container}>
       <VoiceHeader />
-
+      {(idLoading || createLoading) && (
+        <View style={{alignItems: 'center', margin: 16}}>
+          <ActivityIndicator size="large" color="#00e6d6" />
+          <Text style={{marginTop: 8}}>Создаём Google таблицу...</Text>
+        </View>
+      )}
+      {createError && (
+        <View style={{alignItems: 'center', margin: 16}}>
+          <Text style={{color: 'red'}}>Ошибка создания таблицы: {createError}</Text>
+        </View>
+      )}
+      {spreadsheetId && <SpreadsheetLink spreadsheetId={spreadsheetId} />}
       <ModeSelector
         currentMode={currentMode}
         onModeChange={handleModeChange}
