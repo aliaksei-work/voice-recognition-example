@@ -52,12 +52,12 @@ export const useVoiceRecognition = (language: Language = 'en-US') => {
 
   const onSpeechEnd = useCallback((e: any) => {
     console.log('onSpeechEnd: ', e);
-    setState(prev => ({ ...prev, end: '√' }));
+    setState(prev => ({ ...prev, end: '√', started: '' }));
   }, []);
 
   const onSpeechError = useCallback((e: SpeechErrorEvent) => {
     console.log('onSpeechError: ', e);
-    setState(prev => ({ ...prev, error: JSON.stringify(e.error) }));
+    setState(prev => ({ ...prev, error: JSON.stringify(e.error), started: '' }));
   }, []);
 
   const onSpeechResults = useCallback((e: SpeechResultsEvent) => {

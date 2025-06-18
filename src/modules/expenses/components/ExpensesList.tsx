@@ -2,177 +2,71 @@ import React from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { Expense } from '../hooks/useExpenses';
 
-interface ExpensesListProps {
+export interface ExpensesListProps {
   expenses: Expense[];
   onRemoveExpense: (id: string) => void;
+  onClearAll?: () => void;
 }
 
-const ExpenseItem: React.FC<{ expense: Expense; onRemove: (id: string) => void }> = ({
-  expense,
-  onRemove,
+export const ExpensesList: React.FC<ExpensesListProps> = ({
+  expenses,
+  onRemoveExpense,
+  onClearAll,
 }) => {
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString('ru-RU', {
       hour: '2-digit',
       minute: '2-digit',
     });
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'food':
-        return '🍽️';
-      case 'transport':
-        return '🚗';
-      case 'entertainment':
-        return '🎬';
-      case 'shopping':
-        return '🛍️';
-      case 'health':
-        return '🏥';
-      case 'education':
-        return '📚';
-      case 'utilities':
-        return '⚡';
-      default:
-        return '💰';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return '#dc3545';
-      case 'medium':
-        return '#ffc107';
-      case 'low':
-        return '#28a745';
-      default:
-        return '#6c757d';
-    }
-  };
-
-  const getPriorityText = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'Высокий';
-      case 'medium':
-        return 'Средний';
-      case 'low':
-        return 'Низкий';
-      default:
-        return 'Средний';
-    }
-  };
-
-  return (
+  const renderExpenseItem = ({ item }: { item: Expense }) => (
     <View style={styles.expenseItem}>
       <View style={styles.expenseContent}>
         <View style={styles.expenseHeader}>
-          <Text style={styles.categoryIcon}>{getCategoryIcon(expense.category)}</Text>
-          <View style={styles.expenseInfo}>
-            <Text style={styles.category}>{expense.category}</Text>
-            {expense.location && (
-              <Text style={styles.location}>📍 {expense.location}</Text>
-            )}
-          </View>
-          <View style={styles.amountContainer}>
-            <Text style={styles.amount}>
-              {expense.amount.toFixed(2)} {expense.currency}
-            </Text>
-            {expense.quantity && expense.unit && (
-              <Text style={styles.quantity}>
-                {expense.quantity} {expense.unit}
-              </Text>
-            )}
-          </View>
+          <Text style={styles.expenseDescription}>{item.description}</Text>
+          <Text style={styles.expenseAmount}>
+            {item.amount.toFixed(2)} {item.currency}
+          </Text>
         </View>
         
-        <Text style={styles.description}>{expense.description}</Text>
-        
         <View style={styles.expenseDetails}>
-          <View style={styles.detailRow}>
-            <Text style={styles.timestamp}>{formatDate(expense.timestamp)}</Text>
-            {expense.paymentMethod && (
-              <Text style={styles.paymentMethod}>💳 {expense.paymentMethod}</Text>
-            )}
-          </View>
-          
-          {expense.tags && expense.tags.length > 0 && (
-            <View style={styles.tagsContainer}>
-              {expense.tags.slice(0, 3).map((tag, index) => (
-                <View key={index} style={styles.tag}>
-                  <Text style={styles.tagText}>#{tag}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          
-          <View style={styles.priorityContainer}>
-            <View 
-              style={[
-                styles.priorityBadge, 
-                { backgroundColor: getPriorityColor(expense.priority || 'medium') }
-              ]}
-            >
-              <Text style={styles.priorityText}>
-                {getPriorityText(expense.priority || 'medium')}
-              </Text>
-            </View>
-            {expense.isRecurring && (
-              <View style={styles.recurringBadge}>
-                <Text style={styles.recurringText}>🔄 Повторяющийся</Text>
-              </View>
-            )}
-          </View>
-          
-          {expense.merchant && (
-            <Text style={styles.merchant}>🏪 {expense.merchant}</Text>
-          )}
-          
-          {expense.notes && (
-            <Text style={styles.notes}>📝 {expense.notes}</Text>
+          <Text style={styles.expenseTime}>{formatTime(item.timestamp)}</Text>
+          <Text style={styles.expenseCategory}>{item.category}</Text>
+          {item.location && (
+            <Text style={styles.expenseLocation}>📍 {item.location}</Text>
           )}
         </View>
       </View>
       
       <TouchableOpacity
         style={styles.removeButton}
-        onPress={() => onRemove(expense.id)}
+        onPress={() => onRemoveExpense(item.id)}
       >
         <Text style={styles.removeButtonText}>×</Text>
       </TouchableOpacity>
     </View>
   );
-};
 
-export const ExpensesList: React.FC<ExpensesListProps> = ({ expenses, onRemoveExpense }) => {
   if (expenses.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>Нет расходов</Text>
-        <Text style={styles.emptySubtext}>Начните записывать голосом</Text>
-      </View>
-    );
+    return null;
   }
-
-  const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const primaryCurrency = expenses[0]?.currency || 'EUR';
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Расходы</Text>
-        <Text style={styles.total}>Всего: {totalAmount.toFixed(2)} {primaryCurrency}</Text>
+        <Text style={styles.title}>Последние траты</Text>
+        {onClearAll && (
+          <TouchableOpacity onPress={onClearAll} style={styles.clearButton}>
+            <Text style={styles.clearButtonText}>Очистить все</Text>
+          </TouchableOpacity>
+        )}
       </View>
+      
       <FlatList
         data={expenses}
+        renderItem={renderExpenseItem}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ExpenseItem expense={item} onRemove={onRemoveExpense} />
-        )}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
       />
@@ -203,6 +97,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#e74c3c',
+  },
+  clearButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#dc3545',
+    borderRadius: 6,
+  },
+  clearButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '500',
   },
   listContent: {
     paddingBottom: 20,
@@ -360,5 +265,29 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#adb5bd',
+  },
+  expenseDescription: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#2c3e50',
+    flex: 1,
+  },
+  expenseAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#e74c3c',
+  },
+  expenseTime: {
+    fontSize: 12,
+    color: '#adb5bd',
+  },
+  expenseCategory: {
+    fontSize: 12,
+    color: '#6c757d',
+    textTransform: 'capitalize',
+  },
+  expenseLocation: {
+    fontSize: 12,
+    color: '#6c757d',
   },
 }); 

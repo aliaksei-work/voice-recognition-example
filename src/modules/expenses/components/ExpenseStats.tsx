@@ -1,323 +1,214 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Expense } from '../hooks/useExpenses';
+import {View, Text, ScrollView, StyleSheet} from 'react-native';
+import {Expense} from '../hooks/useExpenses';
 
-interface ExpenseStatsProps {
+export interface ExpenseStatsProps {
   expenses: Expense[];
 }
 
-export const ExpenseStats: React.FC<ExpenseStatsProps> = ({ expenses }) => {
+export const ExpenseStats: React.FC<ExpenseStatsProps> = ({expenses}) => {
   if (expenses.length === 0) {
     return null;
   }
 
-  // Calculate statistics
-  const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const averageAmount = totalAmount / expenses.length;
-  
+  const totalAmount = expenses.reduce(
+    (sum, expense) => sum + expense.amount,
+    0,
+  );
+  const primaryCurrency = expenses[0]?.currency || 'EUR';
+
   // Group by category
-  const categoryStats = expenses.reduce((acc, expense) => {
-    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
-    return acc;
-  }, {} as Record<string, number>);
+  const categoryStats = expenses.reduce(
+    (acc, expense) => {
+      acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // Group by currency
-  const currencyStats = expenses.reduce((acc, expense) => {
-    acc[expense.currency] = (acc[expense.currency] || 0) + expense.amount;
-    return acc;
-  }, {} as Record<string, number>);
+  const currencyStats = expenses.reduce(
+    (acc, expense) => {
+      acc[expense.currency] = (acc[expense.currency] || 0) + expense.amount;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
-  // Count recurring expenses
-  const recurringCount = expenses.filter(expense => expense.isRecurring).length;
-  
-  // Count high priority expenses
-  const highPriorityCount = expenses.filter(expense => expense.priority === 'high').length;
+  // Group by priority
+  const priorityStats = expenses.reduce(
+    (acc, expense) => {
+      const priority = expense.priority || 'medium';
+      acc[priority] = (acc[priority] || 0) + expense.amount;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
-  // Get top merchants
-  const merchantStats = expenses.reduce((acc, expense) => {
-    if (expense.merchant) {
-      acc[expense.merchant] = (acc[expense.merchant] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
+  // Group by merchant
+  const merchantStats = expenses.reduce(
+    (acc, expense) => {
+      if (expense.merchant) {
+        acc[expense.merchant] = (acc[expense.merchant] || 0) + expense.amount;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
-  const topMerchants = Object.entries(merchantStats)
-    .sort(([,a], [,b]) => b - a)
-    .slice(0, 3);
+  // Group by payment method
+  const paymentStats = expenses.reduce(
+    (acc, expense) => {
+      if (expense.paymentMethod) {
+        acc[expense.paymentMethod] =
+          (acc[expense.paymentMethod] || 0) + expense.amount;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
-  // Get top payment methods
-  const paymentMethodStats = expenses.reduce((acc, expense) => {
-    if (expense.paymentMethod) {
-      acc[expense.paymentMethod] = (acc[expense.paymentMethod] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'food': return '🍽️';
-      case 'transport': return '🚗';
-      case 'entertainment': return '🎬';
-      case 'shopping': return '🛍️';
-      case 'health': return '🏥';
-      case 'education': return '📚';
-      case 'utilities': return '⚡';
-      default: return '💰';
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return '#dc3545';
+      case 'medium':
+        return '#ffc107';
+      case 'low':
+        return '#28a745';
+      default:
+        return '#6c757d';
     }
   };
 
-  const getCurrencySymbol = (currency: string) => {
-    switch (currency) {
-      case 'EUR': return '€';
-      case 'USD': return '$';
-      case 'RUB': return '₽';
-      case 'GBP': return '£';
-      default: return currency;
-    }
+  const renderStatSection = (
+    title: string,
+    data: Record<string, number>,
+    icon?: string,
+    colorFn?: (key: string) => string,
+  ) => {
+    const sortedData = Object.entries(data).sort(([, a], [, b]) => b - a);
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.statsRow}>
+            {sortedData.map(([key, value]) => (
+              <View key={key} style={styles.statItem}>
+                <View
+                  style={[
+                    styles.statIcon,
+                    colorFn && {backgroundColor: colorFn(key)},
+                  ]}>
+                  <Text style={styles.statIconText}>
+                    {icon || key.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={styles.statLabel}>{key}</Text>
+                <Text style={styles.statValue}>
+                  {value.toFixed(2)} {primaryCurrency}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+    );
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>📊 Статистика трат</Text>
-      
-      {/* Total and Average */}
-      <View style={styles.row}>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Общая сумма</Text>
-          <Text style={styles.statValue}>{totalAmount.toFixed(2)} €</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Средняя трата</Text>
-          <Text style={styles.statValue}>{averageAmount.toFixed(2)} €</Text>
-        </View>
+      <View style={styles.totalSection}>
+        <Text style={styles.totalTitle}>Общая сумма</Text>
+        <Text style={styles.totalAmount}>
+          {totalAmount.toFixed(2)} {primaryCurrency}
+        </Text>
       </View>
 
-      {/* Categories */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>По категориям</Text>
-        {Object.entries(categoryStats)
-          .sort(([,a], [,b]) => b - a)
-          .slice(0, 5)
-          .map(([category, amount]) => (
-            <View key={category} style={styles.categoryRow}>
-              <Text style={styles.categoryIcon}>{getCategoryIcon(category)}</Text>
-              <Text style={styles.categoryName}>{category}</Text>
-              <Text style={styles.categoryAmount}>{amount.toFixed(2)} €</Text>
-            </View>
-          ))}
-      </View>
-
-      {/* Currencies */}
-      {Object.keys(currencyStats).length > 1 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>По валютам</Text>
-          {Object.entries(currencyStats).map(([currency, amount]) => (
-            <View key={currency} style={styles.currencyRow}>
-              <Text style={styles.currencySymbol}>{getCurrencySymbol(currency)}</Text>
-              <Text style={styles.currencyName}>{currency}</Text>
-              <Text style={styles.currencyAmount}>{amount.toFixed(2)}</Text>
-            </View>
-          ))}
-        </View>
+      {renderStatSection(
+        'По категориям',
+        categoryStats,
+        undefined,
+        () => '#007bff',
       )}
-
-      {/* Special indicators */}
-      <View style={styles.row}>
-        {recurringCount > 0 && (
-          <View style={styles.indicatorCard}>
-            <Text style={styles.indicatorIcon}>🔄</Text>
-            <Text style={styles.indicatorLabel}>Повторяющиеся</Text>
-            <Text style={styles.indicatorValue}>{recurringCount}</Text>
-          </View>
-        )}
-        {highPriorityCount > 0 && (
-          <View style={styles.indicatorCard}>
-            <Text style={styles.indicatorIcon}>⚠️</Text>
-            <Text style={styles.indicatorLabel}>Высокий приоритет</Text>
-            <Text style={styles.indicatorValue}>{highPriorityCount}</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Top merchants */}
-      {topMerchants.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Топ магазинов</Text>
-          {topMerchants.map(([merchant, count]) => (
-            <View key={merchant} style={styles.merchantRow}>
-              <Text style={styles.merchantIcon}>🏪</Text>
-              <Text style={styles.merchantName}>{merchant}</Text>
-              <Text style={styles.merchantCount}>{count} покупок</Text>
-            </View>
-          ))}
-        </View>
+      {renderStatSection('По валютам', currencyStats, '💱')}
+      {renderStatSection(
+        'По приоритетам',
+        priorityStats,
+        undefined,
+        getPriorityColor,
       )}
-
-      {/* Payment methods */}
-      {Object.keys(paymentMethodStats).length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Способы оплаты</Text>
-          {Object.entries(paymentMethodStats).map(([method, count]) => (
-            <View key={method} style={styles.paymentRow}>
-              <Text style={styles.paymentIcon}>💳</Text>
-              <Text style={styles.paymentName}>{method}</Text>
-              <Text style={styles.paymentCount}>{count}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      {Object.keys(merchantStats).length > 0 &&
+        renderStatSection('По магазинам', merchantStats, '🏪')}
+      {Object.keys(paymentStats).length > 0 &&
+        renderStatSection('По способам оплаты', paymentStats, '💳')}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    marginTop: 16,
+  },
+  totalSection: {
+    backgroundColor: '#e3f2fd',
     padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
+    marginBottom: 16,
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#6c757d',
+  totalTitle: {
+    fontSize: 14,
+    color: '#1976d2',
     marginBottom: 4,
   },
-  statValue: {
-    fontSize: 16,
+  totalAmount: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#e74c3c',
+    color: '#1976d2',
   },
   section: {
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
     marginBottom: 8,
   },
-  categoryRow: {
+  statsRow: {
     flexDirection: 'row',
+    gap: 12,
+  },
+  statItem: {
     alignItems: 'center',
-    paddingVertical: 6,
+    minWidth: 80,
   },
-  categoryIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  categoryName: {
-    flex: 1,
-    fontSize: 14,
-    color: '#2c3e50',
-    textTransform: 'capitalize',
-  },
-  categoryAmount: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#e74c3c',
-  },
-  currencyRow: {
-    flexDirection: 'row',
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#007bff',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 6,
-  },
-  currencySymbol: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  currencyName: {
-    flex: 1,
-    fontSize: 14,
-    color: '#2c3e50',
-  },
-  currencyAmount: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#e74c3c',
-  },
-  indicatorCard: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  indicatorIcon: {
-    fontSize: 20,
     marginBottom: 4,
   },
-  indicatorLabel: {
-    fontSize: 10,
-    color: '#6c757d',
-    textAlign: 'center',
-  },
-  indicatorValue: {
+  statIconText: {
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#2c3e50',
   },
-  merchantRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  merchantIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  merchantName: {
-    flex: 1,
-    fontSize: 14,
-    color: '#2c3e50',
-  },
-  merchantCount: {
+  statLabel: {
     fontSize: 12,
     color: '#6c757d',
+    textAlign: 'center',
+    marginBottom: 2,
   },
-  paymentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  paymentIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  paymentName: {
-    flex: 1,
-    fontSize: 14,
-    color: '#2c3e50',
-    textTransform: 'capitalize',
-  },
-  paymentCount: {
+  statValue: {
     fontSize: 12,
-    color: '#6c757d',
+    fontWeight: '600',
+    color: '#2c3e50',
+    textAlign: 'center',
   },
-}); 
+});

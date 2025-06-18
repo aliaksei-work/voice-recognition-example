@@ -1,79 +1,130 @@
-import React, { useState } from 'react';
-import { StyleSheet, ScrollView, SafeAreaView, View, Text } from 'react-native';
-import { useVoiceExpenseRecognition } from './hooks/useVoiceExpenseRecognition';
-import { useExpenses } from './hooks/useExpenses';
-import { VoiceControls } from '../voiceTest/components/VoiceControls';
-import { LanguageSelector } from '../voiceTest/components/LanguageSelector';
-import { ExpensesList } from './components/ExpensesList';
-import { ProcessingStatus } from './components/ProcessingStatus';
-import { ExpenseStats } from './components/ExpenseStats';
-import { Language } from '../voiceTest/hooks/useVoiceRecognition';
+import React, {useState} from 'react';
+import {StyleSheet, ScrollView, SafeAreaView, View} from 'react-native';
+import {
+  useVoiceRecognition,
+  Language,
+} from '../voiceTest/hooks/useVoiceRecognition';
+import {useListeningState} from '../voiceTest/hooks/useListeningState';
+import {VoiceHeader} from '../voiceTest/components/VoiceHeader';
+import {VoiceStatus} from '../voiceTest/components/VoiceStatus';
+import {VoiceControls} from '../voiceTest/components/VoiceControls';
+import {LanguageSelector} from '../voiceTest/components/LanguageSelector';
+import {useExpenses} from './hooks/useExpenses';
+import {useVoiceExpenseRecognition} from './hooks/useVoiceExpenseRecognition';
+import {ExpensesList} from './components/ExpensesList';
+import {ProcessingStatus} from './components/ProcessingStatus';
+import {ExpenseStats} from './components/ExpenseStats';
+import {ExpenseHistory} from './components/ExpenseHistory';
+import {ModeSelector, AppMode} from './components/ModeSelector';
 
 const ExpenseTracker: React.FC = () => {
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('ru-RU');
+  const [currentMode, setCurrentMode] = useState<AppMode>('add');
+
+  const {state, startRecognizing, stopRecognizing} =
+    useVoiceRecognition(selectedLanguage);
+
+  const {isListening, hasResults, hasError} = useListeningState(state);
 
   const {
-    isListening,
-    isProcessing,
-    recognizedText,
-    error,
-    lastExpense,
-    startRecording,
-    stopRecording,
-  } = useVoiceExpenseRecognition(selectedLanguage);
+    expenses,
+    addExpense,
+    removeExpense,
+    clearExpenses,
+    getExpensesByCategory,
+    getCategoryTotal,
+    getCategoryDateTotal,
+    getCategories,
+  } = useExpenses();
 
-  const { expenses, removeExpense } = useExpenses();
-
-  const handleStartRecording = async () => {
-    await startRecording();
-  };
-
-  const handleStopRecording = async () => {
-    await stopRecording();
-  };
+  const {processVoiceInput, isProcessing, processingError} =
+    useVoiceExpenseRecognition(addExpense);
 
   const handleLanguageChange = (language: Language) => {
     setSelectedLanguage(language);
   };
 
+  const handleModeChange = (mode: AppMode) => {
+    setCurrentMode(mode);
+  };
+
+  const handleVoiceResult = async (text: string) => {
+    await processVoiceInput(text);
+  };
+
+  const renderAddMode = () => (
+    <>
+      <LanguageSelector
+        selectedLanguage={selectedLanguage}
+        onLanguageChange={handleLanguageChange}
+        isListening={isListening}
+      />
+
+      <VoiceControls
+        onStart={startRecognizing}
+        onStop={stopRecognizing}
+        isListening={isListening}
+      />
+
+      {(hasResults || hasError || isListening) && (
+        <VoiceStatus state={state} onResult={handleVoiceResult} />
+      )}
+
+      {isProcessing && <ProcessingStatus />}
+
+      {processingError && (
+        <View style={styles.errorContainer}>
+          <ProcessingStatus error={processingError} />
+        </View>
+      )}
+
+      {expenses.length > 0 && (
+        <>
+          <ExpenseStats
+            expenses={expenses}
+          />
+          <ExpensesList
+            expenses={expenses.slice(0, 5)}
+            onRemoveExpense={removeExpense}
+            onClearAll={clearExpenses}
+          />
+        </>
+      )}
+    </>
+  );
+
+  const renderHistoryMode = () => (
+    <ExpenseHistory
+      expenses={expenses}
+      getExpensesByCategory={getExpensesByCategory}
+      getCategoryTotal={getCategoryTotal}
+      getCategoryDateTotal={getCategoryDateTotal}
+      getCategories={getCategories}
+      onRemoveExpense={removeExpense}
+    />
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Учет расходов</Text>
-          <Text style={styles.subtitle}>Говорите и записывайте траты</Text>
+      <VoiceHeader />
+
+      <ModeSelector
+        currentMode={currentMode}
+        onModeChange={handleModeChange}
+      />
+
+      {currentMode === 'add' ? (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
+          {renderAddMode()}
+        </ScrollView>
+      ) : (
+        <View style={styles.historyContainer}>
+          {renderHistoryMode()}
         </View>
-
-        <LanguageSelector
-          selectedLanguage={selectedLanguage}
-          onLanguageChange={handleLanguageChange}
-          isListening={isListening}
-        />
-
-        <VoiceControls
-          onStart={handleStartRecording}
-          onStop={handleStopRecording}
-          isListening={isListening}
-        />
-
-        <ProcessingStatus
-          isProcessing={isProcessing}
-          recognizedText={recognizedText}
-          error={error}
-          lastExpense={lastExpense}
-        />
-
-        <ExpenseStats expenses={expenses} />
-
-        <ExpensesList
-          expenses={expenses}
-          onRemoveExpense={removeExpense}
-        />
-      </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -91,24 +142,13 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 20,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 20,
+  errorContainer: {
+    marginTop: 16,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6c757d',
-    textAlign: 'center',
-    lineHeight: 22,
+  historyContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
 });
 
-export default ExpenseTracker; 
+export default ExpenseTracker;
