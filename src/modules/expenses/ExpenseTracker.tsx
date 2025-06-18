@@ -19,6 +19,7 @@ import {ModeSelector, AppMode} from './components/ModeSelector';
 import {SpreadsheetLink} from './components/SpreadsheetLink';
 import { useSpreadsheetId } from './hooks/useSpreadsheetId';
 import { useCreateSpreadsheet } from './hooks/useCreateSpreadsheet';
+import { ExpenseData } from './hooks/useGeminiAPI';
 
 interface ExpenseTrackerProps {
   googleAccessToken?: string;
@@ -74,20 +75,22 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
     }
   }, [googleAccessToken, createSpreadsheet, setSpreadsheetId, recreatingSpreadsheet]);
 
-  const {processVoiceInput, isProcessing, processingError} =
-    useVoiceExpenseRecognition(async (expense) => {
-      try {
+  const addExpenseWithSpreadsheetCheck = React.useCallback(async (expense: ExpenseData) => {
+    try {
+      await addExpense(expense);
+    } catch (e) {
+      if (e instanceof Error && e.message === 'SPREADSHEET_NOT_FOUND') {
+        await handleSpreadsheetNotFound();
+        // После пересоздания таблицы пробуем добавить расход снова
         await addExpense(expense);
-      } catch (e) {
-        if (e instanceof Error && e.message === 'SPREADSHEET_NOT_FOUND') {
-          await handleSpreadsheetNotFound();
-          // После пересоздания таблицы пробуем добавить расход снова
-          await addExpense(expense);
-        } else {
-          throw e;
-        }
+      } else {
+        throw e;
       }
-    });
+    }
+  }, [addExpense, handleSpreadsheetNotFound]);
+
+  const {processVoiceInput, isProcessing, processingError} =
+    useVoiceExpenseRecognition(addExpenseWithSpreadsheetCheck);
 
   const handleLanguageChange = (language: Language) => {
     setSelectedLanguage(language);
