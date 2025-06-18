@@ -1,5 +1,5 @@
 import {AppRegistry} from 'react-native';
 import {name as appName} from './app.json';
-import VoiceTest from './src/modules/voiceTest/VoiceTestFuncComp';
+import VoiceTest from './src/modules/voiceTest/VoiceTest';
 
 AppRegistry.registerComponent(appName, () => VoiceTest);
