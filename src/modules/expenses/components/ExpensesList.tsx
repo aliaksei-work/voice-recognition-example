@@ -30,8 +30,40 @@ const ExpenseItem: React.FC<{ expense: Expense; onRemove: (id: string) => void }
         return '🎬';
       case 'shopping':
         return '🛍️';
+      case 'health':
+        return '🏥';
+      case 'education':
+        return '📚';
+      case 'utilities':
+        return '⚡';
       default:
         return '💰';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return '#dc3545';
+      case 'medium':
+        return '#ffc107';
+      case 'low':
+        return '#28a745';
+      default:
+        return '#6c757d';
+    }
+  };
+
+  const getPriorityText = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return 'Высокий';
+      case 'medium':
+        return 'Средний';
+      case 'low':
+        return 'Низкий';
+      default:
+        return 'Средний';
     }
   };
 
@@ -40,12 +72,72 @@ const ExpenseItem: React.FC<{ expense: Expense; onRemove: (id: string) => void }
       <View style={styles.expenseContent}>
         <View style={styles.expenseHeader}>
           <Text style={styles.categoryIcon}>{getCategoryIcon(expense.category)}</Text>
-          <Text style={styles.category}>{expense.category}</Text>
-          <Text style={styles.amount}>{expense.amount.toFixed(2)} €</Text>
+          <View style={styles.expenseInfo}>
+            <Text style={styles.category}>{expense.category}</Text>
+            {expense.location && (
+              <Text style={styles.location}>📍 {expense.location}</Text>
+            )}
+          </View>
+          <View style={styles.amountContainer}>
+            <Text style={styles.amount}>
+              {expense.amount.toFixed(2)} {expense.currency}
+            </Text>
+            {expense.quantity && expense.unit && (
+              <Text style={styles.quantity}>
+                {expense.quantity} {expense.unit}
+              </Text>
+            )}
+          </View>
         </View>
+        
         <Text style={styles.description}>{expense.description}</Text>
-        <Text style={styles.timestamp}>{formatDate(expense.timestamp)}</Text>
+        
+        <View style={styles.expenseDetails}>
+          <View style={styles.detailRow}>
+            <Text style={styles.timestamp}>{formatDate(expense.timestamp)}</Text>
+            {expense.paymentMethod && (
+              <Text style={styles.paymentMethod}>💳 {expense.paymentMethod}</Text>
+            )}
+          </View>
+          
+          {expense.tags && expense.tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {expense.tags.slice(0, 3).map((tag, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>#{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          
+          <View style={styles.priorityContainer}>
+            <View 
+              style={[
+                styles.priorityBadge, 
+                { backgroundColor: getPriorityColor(expense.priority || 'medium') }
+              ]}
+            >
+              <Text style={styles.priorityText}>
+                {getPriorityText(expense.priority || 'medium')}
+              </Text>
+            </View>
+            {expense.isRecurring && (
+              <View style={styles.recurringBadge}>
+                <Text style={styles.recurringText}>🔄 Повторяющийся</Text>
+              </View>
+            )}
+          </View>
+          
+          {expense.merchant && (
+            <Text style={styles.merchant}>🏪 {expense.merchant}</Text>
+          )}
+          
+          {expense.notes && (
+            <Text style={styles.notes}>📝 {expense.notes}</Text>
+          )}
+        </View>
       </View>
+      
       <TouchableOpacity
         style={styles.removeButton}
         onPress={() => onRemove(expense.id)}
@@ -67,12 +159,13 @@ export const ExpensesList: React.FC<ExpensesListProps> = ({ expenses, onRemoveEx
   }
 
   const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const primaryCurrency = expenses[0]?.currency || 'EUR';
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Расходы</Text>
-        <Text style={styles.total}>Всего: {totalAmount.toFixed(2)} €</Text>
+        <Text style={styles.total}>Всего: {totalAmount.toFixed(2)} {primaryCurrency}</Text>
       </View>
       <FlatList
         data={expenses}
@@ -134,33 +227,110 @@ const styles = StyleSheet.create({
   },
   expenseHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   categoryIcon: {
     fontSize: 20,
     marginRight: 8,
   },
-  category: {
+  expenseInfo: {
     flex: 1,
+  },
+  category: {
     fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
     textTransform: 'capitalize',
+  },
+  location: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginTop: 2,
+  },
+  amountContainer: {
+    alignItems: 'flex-end',
   },
   amount: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#e74c3c',
   },
+  quantity: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginTop: 2,
+  },
   description: {
     fontSize: 14,
     color: '#6c757d',
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  expenseDetails: {
+    gap: 6,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   timestamp: {
     fontSize: 12,
     color: '#adb5bd',
+  },
+  paymentMethod: {
+    fontSize: 12,
+    color: '#6c757d',
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  tag: {
+    backgroundColor: '#e9ecef',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  tagText: {
+    fontSize: 10,
+    color: '#6c757d',
+  },
+  priorityContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  priorityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  priorityText: {
+    fontSize: 10,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  recurringBadge: {
+    backgroundColor: '#17a2b8',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  recurringText: {
+    fontSize: 10,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  merchant: {
+    fontSize: 12,
+    color: '#6c757d',
+  },
+  notes: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontStyle: 'italic',
   },
   removeButton: {
     width: 30,

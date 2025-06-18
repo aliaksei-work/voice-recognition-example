@@ -1,17 +1,15 @@
 import { useState, useCallback } from 'react';
+import { ExpenseData } from './useGeminiAPI';
 
-export interface Expense {
+export interface Expense extends ExpenseData {
   id: string;
-  amount: number;
-  category: string;
-  description: string;
   timestamp: number;
 }
 
 export const useExpenses = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  const addExpense = useCallback((expense: Omit<Expense, 'id' | 'timestamp'>) => {
+  const addExpense = useCallback((expense: ExpenseData) => {
     const newExpense: Expense = {
       ...expense,
       id: Date.now().toString(),

@@ -8,8 +8,20 @@ const USE_GEMINI_API = true;
 
 export interface ExpenseData {
   amount: number;
+  currency: string;
   category: string;
   description: string;
+  location?: string;
+  date?: string;
+  time?: string;
+  paymentMethod?: string;
+  quantity?: number;
+  unit?: string;
+  merchant?: string;
+  tags?: string[];
+  priority?: 'low' | 'medium' | 'high';
+  isRecurring?: boolean;
+  notes?: string;
 }
 
 interface GeminiResponse {
@@ -82,6 +94,25 @@ export const useGeminiAPI = () => {
         return 'other';
       };
 
+      const getCurrencyFromText = (text: string): string => {
+        const lowerText = text.toLowerCase();
+        
+        if (lowerText.includes('евро') || lowerText.includes('euro') || lowerText.includes('eur')) {
+          return 'EUR';
+        }
+        if (lowerText.includes('доллар') || lowerText.includes('dollar') || lowerText.includes('usd')) {
+          return 'USD';
+        }
+        if (lowerText.includes('рубл') || lowerText.includes('руб')) {
+          return 'RUB';
+        }
+        if (lowerText.includes('фунт') || lowerText.includes('pound') || lowerText.includes('gbp')) {
+          return 'GBP';
+        }
+        
+        return 'EUR'; // default
+      };
+
       const parseExpenseFallback = (text: string): ExpenseData => {
         // Simple regex patterns for common expense formats
         const amountMatch = text.match(
@@ -92,9 +123,19 @@ export const useGeminiAPI = () => {
           : 0;
 
         const category = getCategoryFromText(text);
+        const currency = getCurrencyFromText(text);
         const description = text.trim();
 
-        return {amount, category, description};
+        return {
+          amount,
+          currency,
+          category,
+          description,
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toLocaleTimeString(),
+          priority: 'medium',
+          isRecurring: false,
+        };
       };
 
       // If API is disabled, use fallback immediately
@@ -104,7 +145,28 @@ export const useGeminiAPI = () => {
       }
 
       try {
-        const prompt = `Extract expense info from: "${text}". Return JSON: {"amount": number, "category": "food|transport|entertainment|shopping|other", "description": "string"}`;
+        const prompt = `Analyze this expense text: "${text}"
+
+Extract all possible information and return a JSON object with these fields:
+{
+  "amount": number (extract monetary amount),
+  "currency": string (EUR, USD, RUB, GBP, etc.),
+  "category": string (food, transport, entertainment, shopping, health, education, utilities, other),
+  "description": string (brief description),
+  "location": string (if mentioned - city, store, restaurant name),
+  "date": string (YYYY-MM-DD format, use today if not mentioned),
+  "time": string (HH:MM format, use current time if not mentioned),
+  "paymentMethod": string (cash, card, mobile, etc. if mentioned),
+  "quantity": number (if multiple items mentioned),
+  "unit": string (pieces, kg, liters, etc. if mentioned),
+  "merchant": string (store/restaurant name if mentioned),
+  "tags": array of strings (relevant keywords),
+  "priority": string (low, medium, high based on amount and category),
+  "isRecurring": boolean (true if it's a subscription or regular expense),
+  "notes": string (any additional relevant information)
+}
+
+If a field is not mentioned or unclear, use null or appropriate default values.`;
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
         console.log('Making request to Gemini API...');
@@ -143,7 +205,7 @@ export const useGeminiAPI = () => {
 
         const data: GeminiResponse = await response.json();
         console.log('Gemini API response:', data);
-
+        
         const responseText =
           data.candidates[0]?.content?.parts[0]?.text || '{}';
 
@@ -155,14 +217,27 @@ export const useGeminiAPI = () => {
 
         const expenseData: ExpenseData = JSON.parse(jsonMatch[0]);
 
+        // Set defaults for missing fields
         return {
           amount: expenseData.amount || 0,
-          category: expenseData.category || 'other',
+          currency: expenseData.currency || getCurrencyFromText(text),
+          category: expenseData.category || getCategoryFromText(text),
           description: expenseData.description || text,
+          location: expenseData.location || undefined,
+          date: expenseData.date || new Date().toISOString().split('T')[0],
+          time: expenseData.time || new Date().toLocaleTimeString(),
+          paymentMethod: expenseData.paymentMethod || undefined,
+          quantity: expenseData.quantity || undefined,
+          unit: expenseData.unit || undefined,
+          merchant: expenseData.merchant || undefined,
+          tags: expenseData.tags || [],
+          priority: expenseData.priority || 'medium',
+          isRecurring: expenseData.isRecurring || false,
+          notes: expenseData.notes || undefined,
         };
       } catch (error) {
         console.error('Error analyzing expense:', error);
-
+        
         // Check if it's a timeout or network error
         if (error instanceof Error) {
           if (error.name === 'AbortError') {
@@ -173,7 +248,7 @@ export const useGeminiAPI = () => {
             console.warn('Network error, using fallback parser');
           }
         }
-
+        
         // Fallback parsing for common patterns
         return parseExpenseFallback(text);
       }

@@ -6,6 +6,7 @@ import { VoiceControls } from '../voiceTest/components/VoiceControls';
 import { LanguageSelector } from '../voiceTest/components/LanguageSelector';
 import { ExpensesList } from './components/ExpensesList';
 import { ProcessingStatus } from './components/ProcessingStatus';
+import { ExpenseStats } from './components/ExpenseStats';
 import { Language } from '../voiceTest/hooks/useVoiceRecognition';
 
 const ExpenseTracker: React.FC = () => {
@@ -65,6 +66,8 @@ const ExpenseTracker: React.FC = () => {
           error={error}
           lastExpense={lastExpense}
         />
+
+        <ExpenseStats expenses={expenses} />
 
         <ExpensesList
           expenses={expenses}
