@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { createMonthSheet } from '../utils/sheetsUtils';
 
 interface CreateSpreadsheetResult {
   spreadsheetId: string;
@@ -14,6 +15,7 @@ export function useCreateSpreadsheet(token?: string) {
     setLoading(true);
     setError(null);
     try {
+      // Создаем таблицу
       const res = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
         method: 'POST',
         headers: {
@@ -21,20 +23,28 @@ export function useCreateSpreadsheet(token?: string) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          properties: { title: 'Orbitric Expenses' },
-          sheets: [
-            {
-              properties: { title: 'Расходы' },
-            },
-          ],
+          properties: {
+            title: 'Orbitric Expenses',
+            locale: 'ru_RU',
+            timeZone: 'Europe/Moscow',
+          },
         }),
       });
+
       if (!res.ok) {
         const errText = await res.text();
         throw new Error('Ошибка создания таблицы: ' + errText);
       }
+
       const data = await res.json();
-      return { spreadsheetId: data.spreadsheetId, url: data.spreadsheetUrl };
+      const spreadsheetId = data.spreadsheetId;
+
+      // Создаем первый лист для текущего месяца
+      const date = new Date();
+      const monthYear = `${date.toLocaleString('ru', { month: 'long' })} ${date.getFullYear()}`;
+      await createMonthSheet(token, spreadsheetId, monthYear);
+
+      return { spreadsheetId, url: data.spreadsheetUrl };
     } catch (e: any) {
       setError(e.message || 'Ошибка');
       return null;
