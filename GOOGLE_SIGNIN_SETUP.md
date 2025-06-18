@@ -14,10 +14,10 @@
 
 1. В "APIs & Services" > "Credentials" создайте OAuth 2.0 Client ID
 2. Для Android добавьте:
-   - Package name: `com.example`
+   - Package name: `com.orbitric`
    - SHA-1 fingerprint (получите командой):
      ```bash
-     cd android && ./gradlew signingReport
+     npm run get-sha1
      ```
 3. Для Web создайте Web Client ID (нужен для React Native)
 

@@ -57,7 +57,8 @@ export const GoogleAuthScreen: React.FC<{ onAuth: (token: string) => void }> = (
   return (
     <View style={styles.container}>
       <Image source={require('../assets/images/logo.png')} style={styles.logo} />
-      <Text style={styles.title}>Вход через Google</Text>
+      <Text style={styles.title}>Orbitric</Text>
+      <Text style={styles.subtitle}>Вход через Google</Text>
       <TouchableOpacity 
         style={[styles.button, isLoading && styles.buttonDisabled]} 
         onPress={handleGoogleLogin}
@@ -74,7 +75,8 @@ export const GoogleAuthScreen: React.FC<{ onAuth: (token: string) => void }> = (
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111' },
   logo: { width: 180, height: 180, marginBottom: 32 },
-  title: { fontSize: 22, color: '#fff', marginBottom: 24 },
+  title: { fontSize: 28, color: '#fff', marginBottom: 8, fontWeight: 'bold' },
+  subtitle: { fontSize: 18, color: '#ccc', marginBottom: 24 },
   button: { backgroundColor: '#00e6d6', padding: 16, borderRadius: 8 },
   buttonDisabled: { backgroundColor: '#666' },
   buttonText: { color: '#111', fontWeight: 'bold', fontSize: 16 },
