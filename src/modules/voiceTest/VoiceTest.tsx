@@ -1,31 +1,27 @@
 import React from 'react';
-import { StyleSheet, ScrollView, SafeAreaView } from 'react-native';
-import { useVoiceRecognition } from './hooks/useVoiceRecognition';
-import { useListeningState } from './hooks/useListeningState';
-import { VoiceHeader } from './components/VoiceHeader';
-import { VoiceStatus } from './components/VoiceStatus';
-import { VoiceControls } from './components/VoiceControls';
+import {StyleSheet, ScrollView, SafeAreaView} from 'react-native';
+import {useVoiceRecognition} from './hooks/useVoiceRecognition';
+import {useListeningState} from './hooks/useListeningState';
+import {VoiceHeader} from './components/VoiceHeader';
+import {VoiceStatus} from './components/VoiceStatus';
+import {VoiceControls} from './components/VoiceControls';
 
 const VoiceTest: React.FC = () => {
-  const { state, startRecognizing, stopRecognizing, cancelRecognizing, destroyRecognizer } =
-    useVoiceRecognition();
-  
-  const { isListening, hasResults, hasError } = useListeningState(state);
+  const {state, startRecognizing, stopRecognizing} = useVoiceRecognition();
+
+  const {isListening, hasResults, hasError} = useListeningState(state);
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+        showsVerticalScrollIndicator={false}>
         <VoiceHeader />
-        
+
         <VoiceControls
           onStart={startRecognizing}
           onStop={stopRecognizing}
-          onCancel={cancelRecognizing}
-          onDestroy={destroyRecognizer}
           isListening={isListening}
         />
 
