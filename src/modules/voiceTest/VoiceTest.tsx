@@ -1,15 +1,23 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {StyleSheet, ScrollView, SafeAreaView} from 'react-native';
-import {useVoiceRecognition} from './hooks/useVoiceRecognition';
+import {useVoiceRecognition, Language} from './hooks/useVoiceRecognition';
 import {useListeningState} from './hooks/useListeningState';
 import {VoiceHeader} from './components/VoiceHeader';
 import {VoiceStatus} from './components/VoiceStatus';
 import {VoiceControls} from './components/VoiceControls';
+import {LanguageSelector} from './components/LanguageSelector';
 
 const VoiceTest: React.FC = () => {
-  const {state, startRecognizing, stopRecognizing} = useVoiceRecognition();
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>('en-US');
+
+  const {state, startRecognizing, stopRecognizing} =
+    useVoiceRecognition(selectedLanguage);
 
   const {isListening, hasResults, hasError} = useListeningState(state);
+
+  const handleLanguageChange = (language: Language) => {
+    setSelectedLanguage(language);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -18,6 +26,12 @@ const VoiceTest: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         <VoiceHeader />
+
+        <LanguageSelector
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={handleLanguageChange}
+          isListening={isListening}
+        />
 
         <VoiceControls
           onStart={startRecognizing}

@@ -6,7 +6,7 @@ export const VoiceHeader: React.FC = () => {
     <View style={styles.container}>
       <Text style={styles.title}>🎤 Voice Recognition</Text>
       <Text style={styles.subtitle}>
-        Press the button and start speaking to test voice recognition
+        Select language and start speaking to test voice recognition
       </Text>
     </View>
   );

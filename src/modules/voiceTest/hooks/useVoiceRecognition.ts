@@ -15,7 +15,9 @@ export interface VoiceState {
   partialResults: string[];
 }
 
-export const useVoiceRecognition = () => {
+export type Language = 'en-US' | 'ru-RU';
+
+export const useVoiceRecognition = (language: Language = 'en-US') => {
   const [state, setState] = useState<VoiceState>({
     recognized: '',
     volume: '',
@@ -82,12 +84,12 @@ export const useVoiceRecognition = () => {
   const startRecognizing = useCallback(async () => {
     clearState();
     try {
-      await Voice.start('en-US');
-      console.log('called start');
+      await Voice.start(language);
+      console.log(`called start with language: ${language}`);
     } catch (e) {
       console.error(e);
     }
-  }, [clearState]);
+  }, [clearState, language]);
 
   const stopRecognizing = useCallback(async () => {
     try {
