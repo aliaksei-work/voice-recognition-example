@@ -28,6 +28,7 @@ interface ExpenseTrackerProps {
 const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spreadsheetId: propSpreadsheetId }) => {
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('ru-RU');
   const [currentMode, setCurrentMode] = useState<AppMode>('add');
+  const [recreatingSpreadsheet, setRecreatingSpreadsheet] = useState(false);
 
   const { spreadsheetId, setSpreadsheetId, loading: idLoading } = useSpreadsheetId();
   const { createSpreadsheet, loading: createLoading, error: createError } = useCreateSpreadsheet(googleAccessToken);
@@ -59,8 +60,34 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
     getCategories,
   } = useExpenses(googleAccessToken, spreadsheetId || propSpreadsheetId);
 
+  const handleSpreadsheetNotFound = React.useCallback(async () => {
+    if (googleAccessToken && !recreatingSpreadsheet) {
+      setRecreatingSpreadsheet(true);
+      try {
+        const created = await createSpreadsheet();
+        if (created?.spreadsheetId) {
+          setSpreadsheetId(created.spreadsheetId);
+        }
+      } finally {
+        setRecreatingSpreadsheet(false);
+      }
+    }
+  }, [googleAccessToken, createSpreadsheet, setSpreadsheetId, recreatingSpreadsheet]);
+
   const {processVoiceInput, isProcessing, processingError} =
-    useVoiceExpenseRecognition(addExpense);
+    useVoiceExpenseRecognition(async (expense) => {
+      try {
+        await addExpense(expense);
+      } catch (e) {
+        if (e instanceof Error && e.message === 'SPREADSHEET_NOT_FOUND') {
+          await handleSpreadsheetNotFound();
+          // После пересоздания таблицы пробуем добавить расход снова
+          await addExpense(expense);
+        } else {
+          throw e;
+        }
+      }
+    });
 
   const handleLanguageChange = (language: Language) => {
     setSelectedLanguage(language);
@@ -92,7 +119,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
         <VoiceStatus state={state} onResult={handleVoiceResult} />
       )}
 
-      {isProcessing && <ProcessingStatus />}
+      {(isProcessing || recreatingSpreadsheet) && <ProcessingStatus />}
 
       {processingError && (
         <View style={styles.errorContainer}>

@@ -1,4 +1,8 @@
 import { Expense } from '../hooks/useExpenses';
+import { CATEGORIES as RAW_CATEGORIES } from '../hooks/useGeminiAPI';
+
+// Добавляем index signature для CATEGORIES
+export const CATEGORIES: Record<string, string[]> = RAW_CATEGORIES as Record<string, string[]>;
 
 const HEADERS = [
   'Дата',
@@ -47,50 +51,13 @@ const getCategoryColor = (category: string): SheetStyle['backgroundColor'] => {
   return categoryColors[category.toLowerCase()] || COLORS.other;
 };
 
-// Категории и подкатегории по примеру скрина
-const MONTH_TEMPLATE = [
-  {
-    category: 'Еда',
-    subcategories: ['Магаз', 'Рестораны', 'Рынок'],
-    color: { red: 1, green: 0.6, blue: 0 },
-    col: 0,
-  },
-  {
-    category: 'Транспорт',
-    subcategories: ['Такси', 'Шеринг', 'Общественный', 'Авиа'],
-    color: { red: 1, green: 0.6, blue: 0 },
-    col: 3,
-  },
-  {
-    category: 'Услуги',
-    subcategories: [
-      'Жилье',
-      'Комиссии, банки',
-      'Туризм',
-      'Парикмахерская',
-      'Веб сервисы',
-      'Курсы яхтинга',
-      'Обустройство дома',
-    ],
-    color: { red: 1, green: 0.6, blue: 0 },
-    col: 6,
-  },
-  {
-    category: 'Всякая всячина',
-    subcategories: [
-      'Одежда/обувь',
-      'Развлечение',
-      'Налоги',
-      'Благотворительность',
-      'Экскурсия',
-      'Страховка',
-      'Техника',
-      'Новый iphone 13',
-    ],
-    color: { red: 1, green: 0.6, blue: 0 },
-    col: 9,
-  },
-];
+// MONTH_TEMPLATE теперь строится на основе CATEGORIES
+export const MONTH_TEMPLATE = Object.keys(CATEGORIES).map((category, i) => ({
+  category,
+  subcategories: CATEGORIES[category],
+  color: { red: 1, green: 0.6, blue: 0 },
+  col: i * 3,
+}));
 
 export const createMonthSheet = async (
   accessToken: string,
@@ -115,7 +82,7 @@ export const createMonthSheet = async (
                   title: sheetTitle,
                   gridProperties: {
                     rowCount: 1000,
-                    columnCount: HEADERS.length,
+                    columnCount: 40,
                   },
                 },
               },
@@ -126,7 +93,21 @@ export const createMonthSheet = async (
     );
 
     if (!addSheetResponse.ok) {
-      throw new Error('Ошибка создания листа');
+      const errorText = await addSheetResponse.text();
+      // Пробуем распарсить ошибку
+      let errorJson: any = {};
+      try {
+        errorJson = JSON.parse(errorText);
+      } catch {}
+      // Если ошибка ALREADY_EXISTS — просто продолжаем (лист уже есть)
+      if (
+        errorJson?.error?.status === 'ALREADY_EXISTS' ||
+        (typeof errorText === 'string' && errorText.includes('уже существует'))
+      ) {
+        return;
+      }
+      // Иначе выбрасываем подробную ошибку
+      throw new Error('Ошибка при создании листа: ' + (errorJson?.error?.message || errorText));
     }
 
     // Добавляем заголовки и форматирование
@@ -454,14 +435,29 @@ export const createMonthSheetTemplate = async (
   });
 };
 
-// Получить координаты ячейки для категории/подкатегории
+// Получить координаты ячейки для категории/подкатегории (без учёта регистра и пробелов)
 export function getCellForCategorySubcategory(category: string, subcategory: string) {
-  const cat = MONTH_TEMPLATE.find(c => c.category === category);
+  const norm = (s: string) => (s ? s.trim().toLowerCase() : '');
+  const cat = MONTH_TEMPLATE.find(c => norm(c.category) === norm(category));
   if (!cat) return null;
-  const row = 2 + cat.subcategories.findIndex(s => s === subcategory);
-  if (row < 2) return null;
+  const subIdx = cat.subcategories.findIndex(s => norm(s) === norm(subcategory));
+  if (subIdx === -1) return null;
+  const row = 2 + subIdx;
   const col = cat.col + 1; // сумма всегда во второй колонке блока
   return { row, col };
+}
+
+// Преобразование индекса столбца в буквы Google Sheets (A, B, ..., Z, AA, AB, ...)
+function columnToLetter(col: number): string {
+  let temp = '';
+  let letter = '';
+  col++; // 1-based
+  while (col > 0) {
+    temp = (col - 1) % 26;
+    letter = String.fromCharCode(temp + 65) + letter;
+    col = Math.floor((col - 1) / 26);
+  }
+  return letter;
 }
 
 // Обновить сумму в ячейке (категория/подкатегория)
@@ -475,10 +471,15 @@ export async function updateExpenseCellInSheet(
 ) {
   // Получить координаты ячейки
   const cell = getCellForCategorySubcategory(category, subcategory);
-  if (!cell) throw new Error('Категория или подкатегория не найдена в шаблоне');
+  console.log('[updateExpenseCellInSheet] category:', category, 'subcategory:', subcategory, 'cell:', cell);
+  if (!cell) {
+    console.error('[updateExpenseCellInSheet] Не найдена ячейка для', category, subcategory);
+    throw new Error('Категория или подкатегория не найдена в шаблоне');
+  }
   // const sheetId = await getSheetId(accessToken, spreadsheetId, sheetTitle); // больше не нужен
-  const colLetter = String.fromCharCode(65 + cell.col); // A=0, B=1, ...
+  const colLetter = columnToLetter(cell.col); // A, B, ..., Z, AA, AB, ...
   const cellRef = `${colLetter}${cell.row + 1}`;
+  console.log('[updateExpenseCellInSheet] cellRef:', cellRef);
 
   // Прочитать текущее значение
   const getResp = await fetch(
@@ -494,12 +495,14 @@ export async function updateExpenseCellInSheet(
       current = parseFloat(data.values[0][0].toString().replace(',', '.')) || 0;
     }
   }
+  console.log('[updateExpenseCellInSheet] current value:', current, 'amount to add:', amount);
 
   // Прибавить сумму
   const newValue = current + amount;
+  console.log('[updateExpenseCellInSheet] new value:', newValue);
 
   // Записать новое значение
-  await fetch(
+  const putResp = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!${cellRef}?valueInputOption=USER_ENTERED`,
     {
       method: 'PUT',
@@ -510,4 +513,70 @@ export async function updateExpenseCellInSheet(
       body: JSON.stringify({ values: [[newValue]] }),
     }
   );
+  const putText = await putResp.text();
+  console.log('[updateExpenseCellInSheet] put response:', putText);
+}
+
+// Нормализация категории и подкатегории (поиск ближайшего совпадения)
+export function normalizeCategoryAndSubcategory(category: string, subcategory: string) {
+  // Логируем исходные значения
+  console.log('[normalizeCategoryAndSubcategory] input:', category, subcategory);
+  // Привести к нижнему регистру и убрать пробелы
+  const norm = (s: string) => (s ? s.trim().toLowerCase() : '');
+  let bestCategory = '';
+  let bestSubcategory = '';
+
+  // Если category пустая — берём первую из шаблона
+  if (!category || norm(category) === '') {
+    bestCategory = Object.keys(CATEGORIES)[0];
+  } else {
+    // Найти категорию
+    for (const cat of Object.keys(CATEGORIES)) {
+      if (norm(cat) === norm(category)) {
+        bestCategory = cat;
+        break;
+      }
+    }
+    if (!bestCategory) {
+      // Поиск по вхождению
+      for (const cat of Object.keys(CATEGORIES)) {
+        if (norm(category).includes(norm(cat)) || norm(cat).includes(norm(category))) {
+          bestCategory = cat;
+          break;
+        }
+      }
+    }
+    if (!bestCategory) {
+      bestCategory = Object.keys(CATEGORIES)[0];
+    }
+  }
+
+  // Если subcategory пустая — берём первую из категории
+  const subcats = CATEGORIES[bestCategory];
+  if (!subcategory || norm(subcategory) === '') {
+    bestSubcategory = subcats[0];
+  } else {
+    // Найти подкатегорию
+    for (const sub of subcats) {
+      if (norm(sub) === norm(subcategory)) {
+        bestSubcategory = sub;
+        break;
+      }
+    }
+    if (!bestSubcategory) {
+      // Поиск по вхождению
+      for (const sub of subcats) {
+        if (norm(subcategory).includes(norm(sub)) || norm(sub).includes(norm(subcategory))) {
+          bestSubcategory = sub;
+          break;
+        }
+      }
+    }
+    if (!bestSubcategory) {
+      bestSubcategory = subcats[0];
+    }
+  }
+
+  console.log('[normalizeCategoryAndSubcategory] result:', bestCategory, bestSubcategory);
+  return { category: bestCategory, subcategory: bestSubcategory };
 } 

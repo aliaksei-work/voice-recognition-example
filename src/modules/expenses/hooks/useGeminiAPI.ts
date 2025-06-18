@@ -6,11 +6,50 @@ const GEMINI_API_KEY = 'AIzaSyCwcVwQDnXJewl8zZUH-BCOjgWECk98RTI';
 // Set to false to disable API calls and use only fallback parser
 const USE_GEMINI_API = true;
 
+// Расширенный список категорий и подкатегорий
+export const CATEGORIES = {
+  'Еда': [
+    'Магаз', 'Рестораны', 'Рынок', 'Кофейня', 'Фастфуд', 'Доставка', 'Кондитерская', 'Кафе', 'Супермаркет', 'Продукты',
+  ],
+  'Транспорт': [
+    'Такси', 'Шеринг', 'Общественный', 'Авиа', 'Метро', 'Автобус', 'Поезд', 'Троллейбус', 'Самокат', 'Велосипед', 'Парковка',
+  ],
+  'Услуги': [
+    'Жилье', 'Комиссии, банки', 'Туризм', 'Парикмахерская', 'Веб сервисы', 'Курсы яхтинга', 'Обустройство дома',
+    'Мобильная связь', 'Интернет', 'Страхование', 'Образование', 'Медицина', 'Ремонт', 'Прачечная', 'Уборка',
+  ],
+  'Всякая всячина': [
+    'Одежда/обувь', 'Развлечение', 'Налоги', 'Благотворительность', 'Экскурсия', 'Страховка', 'Техника', 'Новый iphone 13',
+    'Подарки', 'Книги', 'Игрушки', 'Хобби', 'Спорт', 'Питомцы', 'Аксессуары', 'Косметика', 'Украшения',
+  ],
+  'Здоровье': [
+    'Аптека', 'Врач', 'Стоматолог', 'Анализы', 'Массаж', 'Фитнес', 'Медстраховка',
+  ],
+  'Образование': [
+    'Курсы', 'Книги', 'Онлайн-обучение', 'Тренинги', 'Школа', 'Университет',
+  ],
+  'Дом': [
+    'Аренда', 'Коммуналка', 'Ремонт', 'Мебель', 'Техника', 'Декор', 'Интернет',
+  ],
+  'Дети': [
+    'Игрушки', 'Одежда', 'Кружки', 'Секция', 'Школа', 'Питание',
+  ],
+  'Путешествия': [
+    'Авиабилеты', 'Отель', 'Экскурсии', 'Трансфер', 'Страховка', 'Питание',
+  ],
+  'Авто': [
+    'Бензин', 'Мойка', 'Шиномонтаж', 'Ремонт', 'Страховка', 'Парковка',
+  ],
+  'Питомцы': [
+    'Корм', 'Ветклиника', 'Игрушки', 'Аксессуары',
+  ],
+};
+
 export interface ExpenseData {
   amount: number;
   currency: string;
   category: string;
-  description: string;
+  subcategory: string;
   location?: string;
   date?: string;
   time?: string;
@@ -54,7 +93,7 @@ export const useGeminiAPI = () => {
           lowerText.includes('cafe') ||
           lowerText.includes('restaurant')
         ) {
-          return 'food';
+          return 'Еда';
         }
 
         if (
@@ -67,7 +106,7 @@ export const useGeminiAPI = () => {
           lowerText.includes('metro') ||
           lowerText.includes('bus')
         ) {
-          return 'transport';
+          return 'Транспорт';
         }
 
         if (
@@ -78,7 +117,7 @@ export const useGeminiAPI = () => {
           lowerText.includes('cinema') ||
           lowerText.includes('theater')
         ) {
-          return 'entertainment';
+          return 'Всякая всячина';
         }
 
         if (
@@ -88,10 +127,10 @@ export const useGeminiAPI = () => {
           lowerText.includes('store') ||
           lowerText.includes('shop')
         ) {
-          return 'shopping';
+          return 'Всякая всячина';
         }
 
-        return 'other';
+        return 'Всякая всячина';
       };
 
       const getCurrencyFromText = (text: string): string => {
@@ -124,13 +163,12 @@ export const useGeminiAPI = () => {
 
         const category = getCategoryFromText(text);
         const currency = getCurrencyFromText(text);
-        const description = text.trim();
 
         return {
           amount,
           currency,
           category,
-          description,
+          subcategory: 'Прочее',
           date: new Date().toISOString().split('T')[0],
           time: new Date().toLocaleTimeString(),
           priority: 'medium',
@@ -145,14 +183,15 @@ export const useGeminiAPI = () => {
       }
 
       try {
-        const prompt = `Analyze this expense text: "${text}"
+        const prompt = `
+Analyze this expense text: "${text}"
 
-Extract all possible information and return a JSON object with these fields:
+Return a JSON object with these fields:
 {
-  "amount": number (extract monetary amount),
-  "currency": string (EUR, USD, RUB, GBP, etc.),
-  "category": string (food, transport, entertainment, shopping, health, education, utilities, other),
-  "description": string (brief description),
+  "amount": number,
+  "currency": string,
+  "category": string, // one of: ${Object.keys(CATEGORIES).join(', ')}
+  "subcategory": string, // one of: ${Object.values(CATEGORIES).flat().join(', ')}
   "location": string (if mentioned - city, store, restaurant name),
   "date": string (YYYY-MM-DD format, use today if not mentioned),
   "time": string (HH:MM format, use current time if not mentioned),
@@ -166,7 +205,10 @@ Extract all possible information and return a JSON object with these fields:
   "notes": string (any additional relevant information)
 }
 
-If a field is not mentioned or unclear, use null or appropriate default values.`;
+Choose the most appropriate category and subcategory from the lists above.
+If you are not sure, pick the closest match.
+If a field is not mentioned or unclear, use null or appropriate default values.
+`;
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
         console.log('Making request to Gemini API...');
@@ -222,7 +264,7 @@ If a field is not mentioned or unclear, use null or appropriate default values.`
           amount: expenseData.amount || 0,
           currency: expenseData.currency || getCurrencyFromText(text),
           category: expenseData.category || getCategoryFromText(text),
-          description: expenseData.description || text,
+          subcategory: expenseData.subcategory || '',
           location: expenseData.location || undefined,
           date: expenseData.date || new Date().toISOString().split('T')[0],
           time: expenseData.time || new Date().toLocaleTimeString(),

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExpenseData } from './useGeminiAPI';
-import { createMonthSheetTemplate, updateExpenseCellInSheet } from '../utils/sheetsUtils';
+import { createMonthSheetTemplate, updateExpenseCellInSheet, normalizeCategoryAndSubcategory } from '../utils/sheetsUtils';
 
 export interface Expense extends ExpenseData {
   id: string;
@@ -41,6 +41,19 @@ export const useExpenses = (googleAccessToken?: string, spreadsheetId?: string) 
     }
   }, []);
 
+  const checkSpreadsheetExists = useCallback(async (token: string, id: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
+    }
+  }, []);
+
   const addExpense = useCallback(async (expense: ExpenseData) => {
     const newExpense: Expense = {
       ...expense,
@@ -55,16 +68,25 @@ export const useExpenses = (googleAccessToken?: string, spreadsheetId?: string) 
     // Синхронизация с Google Sheets
     if (googleAccessToken && spreadsheetId) {
       try {
+        // Проверяем существование таблицы
+        const exists = await checkSpreadsheetExists(googleAccessToken, spreadsheetId);
+        if (!exists) {
+          // Если таблица не существует, выбрасываем ошибку, которая будет перехвачена в ExpenseTracker
+          throw new Error('SPREADSHEET_NOT_FOUND');
+        }
+
         const date = new Date(newExpense.timestamp);
         const monthYear = `${date.toLocaleString('ru', { month: 'long' })} ${date.getFullYear()}`;
+        // Нормализуем категорию и подкатегорию
+        const { category, subcategory } = normalizeCategoryAndSubcategory(newExpense.category, newExpense.subcategory);
         // Пытаемся обновить ячейку, если листа нет — создаём шаблон и пробуем снова
         try {
           await updateExpenseCellInSheet(
             googleAccessToken,
             spreadsheetId,
             monthYear,
-            newExpense.category,
-            newExpense.description, // предполагаем, что description = подкатегория
+            category,
+            subcategory,
             newExpense.amount
           );
         } catch (err) {
@@ -74,17 +96,20 @@ export const useExpenses = (googleAccessToken?: string, spreadsheetId?: string) 
             googleAccessToken,
             spreadsheetId,
             monthYear,
-            newExpense.category,
-            newExpense.description,
+            category,
+            subcategory,
             newExpense.amount
           );
         }
       } catch (e) {
+        if (e instanceof Error && e.message === 'SPREADSHEET_NOT_FOUND') {
+          throw e; // Пробрасываем ошибку дальше для обработки в ExpenseTracker
+        }
         console.warn('Ошибка синхронизации с Google Sheets', e);
       }
     }
     return newExpense;
-  }, [expenses, saveExpenses, googleAccessToken, spreadsheetId]);
+  }, [expenses, saveExpenses, googleAccessToken, spreadsheetId, checkSpreadsheetExists]);
 
   const removeExpense = useCallback(async (id: string) => {
     const updatedExpenses = expenses.filter(expense => expense.id !== id);
