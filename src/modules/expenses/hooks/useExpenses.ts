@@ -9,7 +9,26 @@ export interface Expense extends ExpenseData {
 
 const STORAGE_KEY = 'expenses_history';
 
-export const useExpenses = () => {
+// Добавляем утилиту для Google Sheets
+const appendExpenseToSheet = async (
+  accessToken: string,
+  spreadsheetId: string,
+  values: any[][]
+) => {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:append?valueInputOption=USER_ENTERED`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ values }),
+  });
+  if (!res.ok) throw new Error('Ошибка синхронизации с Google Sheets');
+  return res.json();
+};
+
+export const useExpenses = (googleAccessToken?: string, spreadsheetId?: string) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -50,8 +69,30 @@ export const useExpenses = () => {
     const updatedExpenses = [newExpense, ...expenses];
     setExpenses(updatedExpenses);
     await saveExpenses(updatedExpenses);
+    // Синхронизация с Google Sheets
+    if (googleAccessToken && spreadsheetId) {
+      try {
+        await appendExpenseToSheet(googleAccessToken, spreadsheetId, [[
+          newExpense.amount,
+          newExpense.currency,
+          newExpense.category,
+          newExpense.description,
+          newExpense.date,
+          newExpense.time,
+          newExpense.location,
+          newExpense.paymentMethod,
+          newExpense.merchant,
+          newExpense.tags?.join(', '),
+          newExpense.priority,
+          newExpense.isRecurring ? 'Да' : 'Нет',
+          newExpense.notes,
+        ]]);
+      } catch (e) {
+        console.warn('Ошибка синхронизации с Google Sheets', e);
+      }
+    }
     return newExpense;
-  }, [expenses, saveExpenses]);
+  }, [expenses, saveExpenses, googleAccessToken, spreadsheetId]);
 
   const removeExpense = useCallback(async (id: string) => {
     const updatedExpenses = expenses.filter(expense => expense.id !== id);

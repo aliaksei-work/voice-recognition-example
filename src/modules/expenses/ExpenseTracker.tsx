@@ -17,7 +17,12 @@ import {ExpenseStats} from './components/ExpenseStats';
 import {ExpenseHistory} from './components/ExpenseHistory';
 import {ModeSelector, AppMode} from './components/ModeSelector';
 
-const ExpenseTracker: React.FC = () => {
+interface ExpenseTrackerProps {
+  googleAccessToken?: string;
+  spreadsheetId?: string;
+}
+
+const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spreadsheetId }) => {
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('ru-RU');
   const [currentMode, setCurrentMode] = useState<AppMode>('add');
 
@@ -35,7 +40,7 @@ const ExpenseTracker: React.FC = () => {
     getCategoryTotal,
     getCategoryDateTotal,
     getCategories,
-  } = useExpenses();
+  } = useExpenses(googleAccessToken, spreadsheetId);
 
   const {processVoiceInput, isProcessing, processingError} =
     useVoiceExpenseRecognition(addExpense);

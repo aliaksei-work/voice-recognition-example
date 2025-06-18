@@ -1,5 +1,5 @@
 import {AppRegistry} from 'react-native';
 import {name as appName} from './app.json';
-import {ExpenseTracker} from './src/modules';
+import App from './App';
 
-AppRegistry.registerComponent(appName, () => ExpenseTracker);
+AppRegistry.registerComponent(appName, () => App);
