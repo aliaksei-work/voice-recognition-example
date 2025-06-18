@@ -17,14 +17,6 @@ const HEADERS = [
   'Приоритет',
 ];
 
-interface SheetStyle {
-  backgroundColor: { red: number; green: number; blue: number };
-  textFormat?: {
-    bold?: boolean;
-    fontSize?: number;
-  };
-}
-
 const COLORS = {
   header: { red: 0.27, green: 0.35, blue: 0.39 },
   headerText: { red: 1, green: 1, blue: 1 },
@@ -36,19 +28,6 @@ const COLORS = {
   education: { red: 0.851, green: 0.851, blue: 1 },
   utilities: { red: 0.937, green: 0.937, blue: 0.937 },
   other: { red: 0.95, green: 0.95, blue: 0.95 },
-};
-
-const getCategoryColor = (category: string): SheetStyle['backgroundColor'] => {
-  const categoryColors: { [key: string]: SheetStyle['backgroundColor'] } = {
-    food: COLORS.food,
-    transport: COLORS.transport,
-    entertainment: COLORS.entertainment,
-    shopping: COLORS.shopping,
-    health: COLORS.health,
-    education: COLORS.education,
-    utilities: COLORS.utilities,
-  };
-  return categoryColors[category.toLowerCase()] || COLORS.other;
 };
 
 // MONTH_TEMPLATE теперь строится на основе CATEGORIES
@@ -237,7 +216,7 @@ export const appendExpenseToSheet = async (
             expense.date || new Date(expense.timestamp).toLocaleDateString('ru'),
             expense.time || new Date(expense.timestamp).toLocaleTimeString('ru'),
             expense.category,
-            expense.description,
+            expense.subcategory,
             expense.amount,
             expense.currency,
             expense.paymentMethod || '',
@@ -271,16 +250,18 @@ export const appendExpenseToSheet = async (
               updateCells: {
                 rows: [
                   {
-                    values: Array(HEADERS.length).fill({
-                      userEnteredFormat: {
-                        backgroundColor: getCategoryColor(expense.category),
-                        textFormat: { fontSize: 10 },
-                        borders: {
-                          bottom: { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
-                          right: { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
-                        },
-                      },
-                    }),
+                    values: [
+                      { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
+                      { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
+                      { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
+                      { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
+                      { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
+                      { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
+                      { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
+                      { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
+                      { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
+                      { userEnteredFormat: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } } },
+                    ],
                   },
                 ],
                 fields: 'userEnteredFormat',
@@ -289,7 +270,7 @@ export const appendExpenseToSheet = async (
                   startRowIndex: rowIndex,
                   endRowIndex: rowIndex + 1,
                   startColumnIndex: 0,
-                  endColumnIndex: HEADERS.length,
+                  endColumnIndex: 10,
                 },
               },
             },
@@ -318,7 +299,36 @@ export const createMonthSheetTemplate = async (
   // 2. Подготовить batchUpdate для структуры, цветов и формул
   const requests: any[] = [];
 
-  // Оранжевая шапка
+  // Добавляем заголовок "Расходы за месяц"
+  requests.push({
+    updateCells: {
+      rows: [
+        {
+          values: [
+            {
+              userEnteredValue: { stringValue: `Расходы за ${sheetTitle}` },
+              userEnteredFormat: {
+                backgroundColor: { red: 0.2, green: 0.3, blue: 0.8 },
+                textFormat: { bold: true, fontSize: 16, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                horizontalAlignment: 'CENTER',
+                verticalAlignment: 'MIDDLE',
+              },
+            },
+          ],
+        },
+      ],
+      fields: 'userEnteredValue,userEnteredFormat',
+      range: {
+        sheetId,
+        startRowIndex: 0,
+        endRowIndex: 1,
+        startColumnIndex: 0,
+        endColumnIndex: 1,
+      },
+    },
+  });
+
+  // Оранжевая шапка с категориями
   MONTH_TEMPLATE.forEach((cat) => {
     requests.push({
       updateCells: {
@@ -329,20 +339,27 @@ export const createMonthSheetTemplate = async (
                 userEnteredValue: { stringValue: `${cat.category} €` },
                 userEnteredFormat: {
                   backgroundColor: cat.color,
-                  textFormat: { bold: true, fontSize: 13 },
+                  textFormat: { bold: true, fontSize: 13, foregroundColor: { red: 0, green: 0, blue: 0 } },
                   horizontalAlignment: 'CENTER',
                   verticalAlignment: 'MIDDLE',
                 },
               },
-              { userEnteredValue: { stringValue: '∑' }, userEnteredFormat: { backgroundColor: cat.color, textFormat: { bold: true }, horizontalAlignment: 'CENTER' } },
+              { 
+                userEnteredValue: { stringValue: '∑' }, 
+                userEnteredFormat: { 
+                  backgroundColor: cat.color, 
+                  textFormat: { bold: true, foregroundColor: { red: 0, green: 0, blue: 0 } }, 
+                  horizontalAlignment: 'CENTER' 
+                } 
+              },
             ],
           },
         ],
         fields: 'userEnteredValue,userEnteredFormat',
         range: {
           sheetId,
-          startRowIndex: 1,
-          endRowIndex: 2,
+          startRowIndex: 2,
+          endRowIndex: 3,
           startColumnIndex: cat.col,
           endColumnIndex: cat.col + 2,
         },
@@ -358,16 +375,28 @@ export const createMonthSheetTemplate = async (
           rows: [
             {
               values: [
-                { userEnteredValue: { stringValue: subcat }, userEnteredFormat: { backgroundColor: { red: 0.9, green: 1, blue: 0.9 } } },
-                { userEnteredValue: { numberValue: 0 }, userEnteredFormat: { backgroundColor: { red: 0.8, green: 0.95, blue: 0.8 } } },
+                { 
+                  userEnteredValue: { stringValue: subcat }, 
+                  userEnteredFormat: { 
+                    backgroundColor: { red: 0.9, green: 1, blue: 0.9 },
+                    textFormat: { fontSize: 11, foregroundColor: { red: 0, green: 0, blue: 0 } }
+                  } 
+                },
+                { 
+                  userEnteredValue: { numberValue: 0 }, 
+                  userEnteredFormat: { 
+                    backgroundColor: { red: 0.8, green: 0.95, blue: 0.8 },
+                    textFormat: { fontSize: 11, foregroundColor: { red: 0, green: 0, blue: 0 } }
+                  } 
+                },
               ],
             },
           ],
           fields: 'userEnteredValue,userEnteredFormat',
           range: {
             sheetId,
-            startRowIndex: 2 + idx,
-            endRowIndex: 3 + idx,
+            startRowIndex: 3 + idx,
+            endRowIndex: 4 + idx,
             startColumnIndex: cat.col,
             endColumnIndex: cat.col + 2,
           },
@@ -378,15 +407,24 @@ export const createMonthSheetTemplate = async (
 
   // Итоги по категориям (формулы)
   MONTH_TEMPLATE.forEach((cat) => {
-    const end = 2 + cat.subcategories.length;
-    const range = String.fromCharCode(66 + cat.col) + '3:' + String.fromCharCode(66 + cat.col) + (end + 1);
+    const end = 3 + cat.subcategories.length;
+    const range = String.fromCharCode(66 + cat.col) + '4:' + String.fromCharCode(66 + cat.col) + (end + 1);
     requests.push({
       updateCells: {
         rows: [
           {
             values: [
-              { userEnteredValue: { stringValue: '' }, userEnteredFormat: { backgroundColor: cat.color } },
-              { userEnteredValue: { formulaValue: `=SUM(${range})` }, userEnteredFormat: { backgroundColor: cat.color, textFormat: { bold: true } } },
+              { 
+                userEnteredValue: { stringValue: '' }, 
+                userEnteredFormat: { backgroundColor: cat.color } 
+              },
+              { 
+                userEnteredValue: { formulaValue: `=SUM(${range})` }, 
+                userEnteredFormat: { 
+                  backgroundColor: cat.color, 
+                  textFormat: { bold: true, foregroundColor: { red: 0, green: 0, blue: 0 } } 
+                } 
+              },
             ],
           },
         ],
@@ -403,29 +441,58 @@ export const createMonthSheetTemplate = async (
   });
 
   // Общий итог (фиолетовая строка)
+  const maxRow = Math.max(...MONTH_TEMPLATE.map(cat => 4 + cat.subcategories.length)) + 2;
   requests.push({
     updateCells: {
       rows: [
         {
           values: [
-            { userEnteredValue: { stringValue: 'Всего € :' }, userEnteredFormat: { backgroundColor: { red: 0.6, green: 0.5, blue: 1 }, textFormat: { bold: true, fontSize: 14 } } },
-            { userEnteredValue: { formulaValue: '=SUM(B12,E12,H12,K12)' }, userEnteredFormat: { backgroundColor: { red: 0.6, green: 0.5, blue: 1 }, textFormat: { bold: true, fontSize: 14 } } },
+            { 
+              userEnteredValue: { stringValue: 'Всего € :' }, 
+              userEnteredFormat: { 
+                backgroundColor: { red: 0.6, green: 0.5, blue: 1 }, 
+                textFormat: { bold: true, fontSize: 14, foregroundColor: { red: 0, green: 0, blue: 0 } } 
+              } 
+            },
+            { 
+              userEnteredValue: { formulaValue: `=SUM(B${maxRow},E${maxRow},H${maxRow},K${maxRow},N${maxRow},Q${maxRow},T${maxRow},W${maxRow},Z${maxRow},AC${maxRow},AF${maxRow})` }, 
+              userEnteredFormat: { 
+                backgroundColor: { red: 0.6, green: 0.5, blue: 1 }, 
+                textFormat: { bold: true, fontSize: 14, foregroundColor: { red: 0, green: 0, blue: 0 } } 
+              } 
+            },
           ],
         },
       ],
       fields: 'userEnteredValue,userEnteredFormat',
       range: {
         sheetId,
-        startRowIndex: 11,
-        endRowIndex: 12,
+        startRowIndex: maxRow as number,
+        endRowIndex: (maxRow as number) + 1,
         startColumnIndex: 0,
         endColumnIndex: 2,
       },
     },
   });
 
+  // Устанавливаем ширину столбцов
+  requests.push({
+    updateDimensionProperties: {
+      range: {
+        sheetId,
+        dimension: 'COLUMNS',
+        startIndex: 0,
+        endIndex: 40,
+      },
+      properties: {
+        pixelSize: 100,
+      },
+      fields: 'pixelSize',
+    },
+  });
+
   // Отправить batchUpdate
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -433,6 +500,11 @@ export const createMonthSheetTemplate = async (
     },
     body: JSON.stringify({ requests }),
   });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error('Ошибка при создании шаблона листа: ' + errorText);
+  }
 };
 
 // Получить координаты ячейки для категории/подкатегории (без учёта регистра и пробелов)
@@ -442,20 +514,20 @@ export function getCellForCategorySubcategory(category: string, subcategory: str
   if (!cat) return null;
   const subIdx = cat.subcategories.findIndex(s => norm(s) === norm(subcategory));
   if (subIdx === -1) return null;
-  const row = 2 + subIdx;
-  const col = cat.col + 1; // сумма всегда во второй колонке блока
+  const row = 3 + subIdx;
+  const col = cat.col + 1;
   return { row, col };
 }
 
 // Преобразование индекса столбца в буквы Google Sheets (A, B, ..., Z, AA, AB, ...)
 function columnToLetter(col: number): string {
-  let temp = '';
+  let temp: number;
   let letter = '';
-  col++; // 1-based
-  while (col > 0) {
-    temp = (col - 1) % 26;
+  let colNum = col + 1; // 1-based
+  while (colNum > 0) {
+    temp = (colNum - 1) % 26;
     letter = String.fromCharCode(temp + 65) + letter;
-    col = Math.floor((col - 1) / 26);
+    colNum = Math.floor((colNum - 1) / 26);
   }
   return letter;
 }

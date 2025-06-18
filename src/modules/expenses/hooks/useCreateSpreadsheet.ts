@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { createMonthSheet } from '../utils/sheetsUtils';
+import { createMonthSheetTemplate } from '../utils/sheetsUtils';
 
 interface CreateSpreadsheetResult {
   spreadsheetId: string;
@@ -39,10 +39,10 @@ export function useCreateSpreadsheet(token?: string) {
       const data = await res.json();
       const spreadsheetId = data.spreadsheetId;
 
-      // Создаем первый лист для текущего месяца
+      // Создаем первый лист для текущего месяца с правильным шаблоном
       const date = new Date();
       const monthYear = `${date.toLocaleString('ru', { month: 'long' })} ${date.getFullYear()}`;
-      await createMonthSheet(token, spreadsheetId, monthYear);
+      await createMonthSheetTemplate(token, spreadsheetId, monthYear);
 
       return { spreadsheetId, url: data.spreadsheetUrl };
     } catch (e: any) {
