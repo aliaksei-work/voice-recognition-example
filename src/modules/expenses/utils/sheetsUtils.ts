@@ -302,4 +302,58 @@ export const loadExpensesFromSheet = async (
     console.error('Ошибка при загрузке трат из таблицы:', error);
     return [];
   }
+};
+
+export const clearSheetData = async (
+  accessToken: string,
+  spreadsheetId: string
+) => {
+  try {
+    // Получаем список всех листов
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Ошибка получения информации о таблице');
+    }
+
+    const data = await response.json();
+    const sheets = data.sheets || [];
+    
+    // Фильтруем только листы с месяцами (формат "Месяц Год")
+    const monthSheets = sheets.filter((sheet: any) => {
+      const title = sheet.properties.title;
+      return /^[а-яё]+ \d{4}$/i.test(title);
+    });
+
+    // Очищаем данные из каждого месячного листа, оставляя заголовки
+    for (const sheet of monthSheets) {
+      const sheetTitle = sheet.properties.title;
+      try {
+        // Очищаем все данные кроме заголовка (первая строка)
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A2:F1000:clear`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          }
+        );
+      } catch (error) {
+        console.warn(`Ошибка очистки листа ${sheetTitle}:`, error);
+      }
+    }
+
+    console.log('Все данные из листов успешно очищены');
+  } catch (error) {
+    console.error('Ошибка при очистке данных из таблицы:', error);
+    throw error;
+  }
 }; 

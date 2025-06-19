@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExpenseData } from './useGeminiAPI';
-import { appendExpenseToSheet, loadExpensesFromSheet } from '../utils/sheetsUtils';
+import { appendExpenseToSheet, loadExpensesFromSheet, clearSheetData } from '../utils/sheetsUtils';
 
 export interface Expense extends ExpenseData {
   id: string;
@@ -130,6 +130,52 @@ export const useExpenses = (googleAccessToken?: string, spreadsheetId?: string) 
     await AsyncStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  // Upload all local expenses to Google Sheets
+  const uploadAllToSheets = useCallback(async () => {
+    if (!googleAccessToken || !spreadsheetId) {
+      throw new Error('Нет доступа к Google Sheets');
+    }
+
+    try {
+      // Очищаем все листы в таблице
+      await clearSheetData(googleAccessToken, spreadsheetId);
+      
+      // Загружаем все локальные траты в таблицу
+      for (const expense of expenses) {
+        await appendExpenseToSheet(googleAccessToken, spreadsheetId, expense);
+      }
+      
+      console.log(`Успешно загружено ${expenses.length} трат в Google Sheets`);
+    } catch (error) {
+      console.error('Ошибка при загрузке трат в Google Sheets:', error);
+      throw error;
+    }
+  }, [expenses, googleAccessToken, spreadsheetId]);
+
+  // Download all expenses from Google Sheets and replace local data
+  const downloadAllFromSheets = useCallback(async () => {
+    if (!googleAccessToken || !spreadsheetId) {
+      throw new Error('Нет доступа к Google Sheets');
+    }
+
+    try {
+      // Загружаем все траты из таблицы
+      const sheetExpenses = await loadExpensesFromSheet(googleAccessToken, spreadsheetId);
+      
+      // Сортируем по времени (новые сверху)
+      sheetExpenses.sort((a, b) => b.timestamp - a.timestamp);
+      
+      // Заменяем локальные данные
+      setExpenses(sheetExpenses);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(sheetExpenses));
+      
+      console.log(`Успешно загружено ${sheetExpenses.length} трат из Google Sheets`);
+    } catch (error) {
+      console.error('Ошибка при загрузке трат из Google Sheets:', error);
+      throw error;
+    }
+  }, [googleAccessToken, spreadsheetId]);
+
   // Group expenses by category and date
   const getExpensesByCategory = useCallback(() => {
     const grouped: Record<string, Record<string, Expense[]>> = {};
@@ -199,6 +245,8 @@ export const useExpenses = (googleAccessToken?: string, spreadsheetId?: string) 
     addExpense,
     removeExpense,
     clearExpenses,
+    uploadAllToSheets,
+    downloadAllFromSheets,
     getExpensesByCategory,
     getCategoryTotal,
     getCategoryDateTotal,

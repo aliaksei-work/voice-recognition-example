@@ -17,6 +17,7 @@ import {ExpenseStats} from './components/ExpenseStats';
 import {ExpenseHistory} from './components/ExpenseHistory';
 import {ModeSelector, AppMode} from './components/ModeSelector';
 import {SpreadsheetLink} from './components/SpreadsheetLink';
+import {SyncButtons} from './components/SyncButtons';
 import { useSpreadsheetId } from './hooks/useSpreadsheetId';
 import { useCreateSpreadsheet } from './hooks/useCreateSpreadsheet';
 import { ExpenseData } from './hooks/useGeminiAPI';
@@ -55,6 +56,8 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
     addExpense,
     removeExpense,
     clearExpenses,
+    uploadAllToSheets,
+    downloadAllFromSheets,
     getExpensesByCategory,
     getCategoryTotal,
     getCategoryDateTotal,
@@ -128,6 +131,13 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
         <View style={styles.errorContainer}>
           <ProcessingStatus error={processingError} />
         </View>
+      )}
+
+      {spreadsheetId && (
+        <SyncButtons
+          onUploadToSheets={uploadAllToSheets}
+          onDownloadFromSheets={downloadAllFromSheets}
+        />
       )}
 
       {expenses.length > 0 && (
