@@ -24,7 +24,7 @@ export const ExpenseCategory: React.FC<ExpenseCategoryProps> = ({
   onPress,
 }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
-  const positionAnim = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Анимация появления
@@ -35,100 +35,86 @@ export const ExpenseCategory: React.FC<ExpenseCategoryProps> = ({
       friction: 7,
     }).start();
 
-    // Анимация позиции в зависимости от суммы
-    const normalizedPosition = (amount / maxAmount) * 100;
-    Animated.spring(positionAnim, {
-      toValue: normalizedPosition,
-      useNativeDriver: true,
-      tension: 50,
-      friction: 7,
-    }).start();
-  }, [amount, maxAmount]);
+    // Анимация свечения
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0.7,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, []);
 
   // Вычисляем размер звезды в зависимости от суммы
-  const size = Math.max(60, Math.min(100, (amount / maxAmount) * 100));
+  const size = Math.max(40, (amount / maxAmount) * 80);
   
-  // Вычисляем позицию по горизонтали (случайную, но стабильную для категории)
-  const hashCode = category.split('').reduce((acc, char) => {
-    return char.charCodeAt(0) + ((acc << 5) - acc);
-  }, 0);
-  const horizontalPosition = Math.abs(hashCode % (screenWidth - size - 40)) + 20;
+  // Случайное, но стабильное положение для каждой категории
+  const hash = category.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const left = (hash % (screenWidth - size - 32)) + 16;
+  const top = ((hash * 13) % 200) + 16;
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          transform: [
-            {scale: scaleAnim},
-            {translateY: positionAnim.interpolate({
-              inputRange: [0, 100],
-              outputRange: [300, 0],
-            })},
-          ],
-          left: horizontalPosition,
-        },
-      ]}>
-      <TouchableOpacity
-        onPress={onPress}
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.container, {left, top}]}>
+      <Animated.View
         style={[
           styles.star,
           {
             width: size,
             height: size,
+            transform: [{scale: scaleAnim}],
+            opacity: glowAnim,
           },
         ]}>
-        <View style={styles.starContent}>
-          <Text style={styles.amount}>${amount}</Text>
+        <View style={styles.content}>
+          <Text style={styles.amount}>{Math.round(amount)} ₽</Text>
           <Text style={styles.category} numberOfLines={1}>
             {category}
           </Text>
         </View>
-      </TouchableOpacity>
-    </Animated.View>
+      </Animated.View>
+    </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
+    zIndex: 1,
   },
   star: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 50,
-    padding: 10,
-    alignItems: 'center',
+    backgroundColor: '#00e6d6',
+    borderRadius: 40,
     justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#00e6d6',
     shadowOffset: {
       width: 0,
       height: 0,
     },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.8,
     shadowRadius: 10,
     elevation: 5,
   },
-  starContent: {
+  content: {
     alignItems: 'center',
-    justifyContent: 'center',
   },
   amount: {
-    color: '#ffffff',
-    fontSize: 18,
+    color: '#004953',
+    fontSize: 12,
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 230, 214, 0.5)',
-    textShadowOffset: {width: 0, height: 0},
-    textShadowRadius: 10,
   },
   category: {
-    color: '#ffffff',
-    fontSize: 12,
-    marginTop: 4,
-    opacity: 0.8,
-    textShadowColor: 'rgba(0, 230, 214, 0.5)',
-    textShadowOffset: {width: 0, height: 0},
-    textShadowRadius: 10,
+    color: '#004953',
+    fontSize: 10,
+    maxWidth: 60,
   },
 }); 

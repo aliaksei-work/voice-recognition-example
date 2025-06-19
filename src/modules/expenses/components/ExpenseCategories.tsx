@@ -15,6 +15,8 @@ interface ExpenseCategoriesProps {
   onCategoryPress: (category: string) => void;
 }
 
+const {height: screenHeight} = Dimensions.get('window');
+
 export const ExpenseCategories: React.FC<ExpenseCategoriesProps> = ({
   expenses,
   onCategoryPress,
@@ -27,30 +29,29 @@ export const ExpenseCategories: React.FC<ExpenseCategoriesProps> = ({
     const categoryMap = expenses.reduce((acc, expense) => {
       const {category, amount} = expense;
       if (!acc[category]) {
-        acc[category] = 0;
+        acc[category] = {category, amount: 0};
       }
-      acc[category] += amount;
+      acc[category].amount += amount;
       return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, CategoryData>);
 
     // Преобразуем в массив и сортируем по сумме
-    const sortedCategories = Object.entries(categoryMap)
-      .map(([category, amount]) => ({
-        category,
-        amount,
-      }))
-      .sort((a, b) => b.amount - a.amount);
+    const sortedCategories = Object.values(categoryMap).sort(
+      (a, b) => b.amount - a.amount,
+    );
 
-    // Находим максимальную сумму
-    const max = sortedCategories.length > 0 ? sortedCategories[0].amount : 0;
+    // Находим максимальную сумму для масштабирования
+    const maxCategoryAmount = sortedCategories.length
+      ? sortedCategories[0].amount
+      : 0;
 
     setCategories(sortedCategories);
-    setMaxAmount(max);
+    setMaxAmount(maxCategoryAmount);
   }, [expenses]);
 
   return (
     <View style={styles.container}>
-      {categories.map((categoryData) => (
+      {categories.map((categoryData, index) => (
         <ExpenseCategory
           key={categoryData.category}
           category={categoryData.category}
@@ -66,8 +67,8 @@ export const ExpenseCategories: React.FC<ExpenseCategoriesProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#004953',
-    width: '100%',
-    height: '100%',
+    padding: 16,
+    minHeight: screenHeight * 0.5,
+    justifyContent: 'flex-start',
   },
 }); 

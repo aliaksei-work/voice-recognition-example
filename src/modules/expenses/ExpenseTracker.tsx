@@ -30,6 +30,7 @@ import {useSpreadsheetId} from './hooks/useSpreadsheetId';
 import {useCreateSpreadsheet} from './hooks/useCreateSpreadsheet';
 import {ExpenseData} from './hooks/useGeminiAPI';
 import {ExpenseCategories} from './components/ExpenseCategories';
+import {BottomBar} from './components/BottomBar';
 
 interface ExpenseTrackerProps {
   googleAccessToken?: string;
@@ -164,24 +165,14 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     setSelectedCategory(category);
   };
 
-  // Показываем экран настроек
-  if (showSettings) {
-    return (
-      <SettingsScreen
-        currentLanguage={currentLanguage}
-        onLanguageChange={handleLanguageChange}
-        onBack={handleSettingsBack}
-      />
-    );
-  }
-
   const renderAddMode = () => (
     <>
-      <VoiceControls
-        onStart={startRecognizing}
-        onStop={stopRecognizing}
-        isListening={isListening}
-      />
+      <View style={styles.categoriesContainer}>
+        <ExpenseCategories
+          expenses={expenses}
+          onCategoryPress={handleCategoryPress}
+        />
+      </View>
 
       {(hasResults || hasError || isListening) && (
         <VoiceStatus state={state} onResult={handleVoiceResult} />
@@ -201,13 +192,6 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
           onDownloadFromSheets={downloadAllFromSheets}
         />
       )}
-
-      <View style={styles.categoriesContainer}>
-        <ExpenseCategories
-          expenses={expenses}
-          onCategoryPress={handleCategoryPress}
-        />
-      </View>
 
       {selectedCategory && (
         <View style={styles.selectedCategoryContainer}>
@@ -232,30 +216,49 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     />
   );
 
+  // Показываем экран настроек
+  if (showSettings) {
+    return (
+      <SettingsScreen
+        currentLanguage={currentLanguage}
+        onLanguageChange={handleLanguageChange}
+        onBack={handleSettingsBack}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <VoiceHeader onSettingsPress={handleSettingsPress} />
+      
       {(idLoading || createLoading || languageLoading) && (
-        <View style={{alignItems: 'center', margin: 16}}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#00e6d6" />
-          <Text style={{marginTop: 8}}>Загрузка...</Text>
+          <Text style={styles.loadingText}>Загрузка...</Text>
         </View>
       )}
+      
       {createError && (
-        <View style={{alignItems: 'center', margin: 16}}>
-          <Text style={{color: 'red'}}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>
             Ошибка создания таблицы: {createError}
           </Text>
         </View>
       )}
+      
       {spreadsheetId && <SpreadsheetLink spreadsheetId={spreadsheetId} />}
-      <ModeSelector currentMode={currentMode} onModeChange={handleModeChange} />
 
-      {currentMode === 'add' ? (
-        <View style={styles.mainContainer}>{renderAddMode()}</View>
-      ) : (
-        <View style={styles.historyContainer}>{renderHistoryMode()}</View>
-      )}
+      <View style={styles.mainContainer}>
+        {currentMode === 'add' ? renderAddMode() : renderHistoryMode()}
+      </View>
+
+      <BottomBar
+        currentMode={currentMode}
+        onModeChange={handleModeChange}
+        onStart={startRecognizing}
+        onStop={stopRecognizing}
+        isListening={isListening}
+      />
     </SafeAreaView>
   );
 };
@@ -284,12 +287,20 @@ const styles = StyleSheet.create({
     padding: 16,
     maxHeight: '50%',
   },
-  historyContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
+  loadingContainer: {
+    alignItems: 'center',
+    margin: 16,
+  },
+  loadingText: {
+    marginTop: 8,
+    color: '#fff',
   },
   errorContainer: {
-    marginTop: 16,
+    alignItems: 'center',
+    margin: 16,
+  },
+  errorText: {
+    color: 'red',
   },
 });
 
