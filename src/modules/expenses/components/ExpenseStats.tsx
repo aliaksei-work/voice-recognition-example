@@ -125,24 +125,6 @@ export const ExpenseStats: React.FC<ExpenseStatsProps> = ({expenses}) => {
           {totalAmount.toFixed(2)} {primaryCurrency}
         </Text>
       </View>
-
-      {renderStatSection(
-        'По категориям',
-        categoryStats,
-        undefined,
-        () => '#007bff',
-      )}
-      {renderStatSection('По валютам', currencyStats, '💱')}
-      {renderStatSection(
-        'По приоритетам',
-        priorityStats,
-        undefined,
-        getPriorityColor,
-      )}
-      {Object.keys(merchantStats).length > 0 &&
-        renderStatSection('По магазинам', merchantStats, '🏪')}
-      {Object.keys(paymentStats).length > 0 &&
-        renderStatSection('По способам оплаты', paymentStats, '💳')}
     </View>
   );
 };

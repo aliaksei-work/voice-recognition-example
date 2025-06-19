@@ -168,18 +168,21 @@ export const appendExpenseToSheet = async (
     minute: '2-digit' 
   });
 
+  // Создаем название листа в формате "Месяц Год"
+  const monthYear = `${date.toLocaleString('ru', { month: 'long' })} ${date.getFullYear()}`;
+
   try {
-    // Проверяем существование листа
+    // Проверяем существование листа для текущего месяца
     try {
-      await getSheetId(accessToken, spreadsheetId, 'Расходы');
+      await getSheetId(accessToken, spreadsheetId, monthYear);
     } catch {
       // Если лист не существует, создаем его
-      await createSimpleExpenseSheet(accessToken, spreadsheetId, 'Расходы');
+      await createSimpleExpenseSheet(accessToken, spreadsheetId, monthYear);
     }
 
     // Добавляем новую строку с тратой
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Расходы!A:F:append?valueInputOption=USER_ENTERED`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${monthYear}!A:F:append?valueInputOption=USER_ENTERED`,
       {
         method: 'POST',
         headers: {
@@ -216,8 +219,9 @@ export const loadExpensesFromSheet = async (
   spreadsheetId: string
 ): Promise<Expense[]> => {
   try {
+    // Сначала получаем список всех листов
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Расходы!A:F`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -226,39 +230,74 @@ export const loadExpensesFromSheet = async (
     );
 
     if (!response.ok) {
-      throw new Error('Ошибка загрузки данных из таблицы');
+      throw new Error('Ошибка получения информации о таблице');
     }
 
     const data = await response.json();
-    const rows = data.values || [];
-
-    // Пропускаем заголовок
-    const expenseRows = rows.slice(1);
-
-    return expenseRows.map((row: any[], index: number) => {
-      const [dateStr, timeStr, category, description, amountStr, currency] = row;
-      
-      // Парсим дату и время
-      const [day, month, year] = (dateStr || '').split('.');
-      const [hours, minutes] = (timeStr || '').split(':');
-      
-      const timestamp = new Date(
-        parseInt(year || new Date().getFullYear().toString()),
-        parseInt(month || '1') - 1,
-        parseInt(day || '1'),
-        parseInt(hours || '0'),
-        parseInt(minutes || '0')
-      ).getTime();
-
-      return {
-        id: `sheet-${index}`,
-        timestamp,
-        category: category || 'Другое',
-        description: description || '',
-        amount: parseFloat(amountStr || '0'),
-        currency: currency || 'RUB',
-      };
+    const sheets = data.sheets || [];
+    
+    // Фильтруем только листы с месяцами (формат "Месяц Год")
+    const monthSheets = sheets.filter((sheet: any) => {
+      const title = sheet.properties.title;
+      // Проверяем, что название соответствует формату "Месяц Год"
+      return /^[а-яё]+ \d{4}$/i.test(title);
     });
+
+    const allExpenses: Expense[] = [];
+
+    // Загружаем данные из каждого месячного листа
+    for (const sheet of monthSheets) {
+      const sheetTitle = sheet.properties.title;
+      try {
+        const sheetResponse = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A:F`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (sheetResponse.ok) {
+          const sheetData = await sheetResponse.json();
+          const rows = sheetData.values || [];
+
+          // Пропускаем заголовок
+          const expenseRows = rows.slice(1);
+
+          const sheetExpenses = expenseRows.map((row: any[], index: number) => {
+            const [dateStr, timeStr, category, description, amountStr, currency] = row;
+            
+            // Парсим дату и время
+            const [day, month, year] = (dateStr || '').split('.');
+            const [hours, minutes] = (timeStr || '').split(':');
+            
+            const timestamp = new Date(
+              parseInt(year || new Date().getFullYear().toString()),
+              parseInt(month || '1') - 1,
+              parseInt(day || '1'),
+              parseInt(hours || '0'),
+              parseInt(minutes || '0')
+            ).getTime();
+
+            return {
+              id: `${sheetTitle}-${index}`,
+              timestamp,
+              category: category || 'Другое',
+              description: description || '',
+              amount: parseFloat(amountStr || '0'),
+              currency: currency || 'RUB',
+            };
+          });
+
+          allExpenses.push(...sheetExpenses);
+        }
+      } catch (error) {
+        console.warn(`Ошибка загрузки листа ${sheetTitle}:`, error);
+      }
+    }
+
+    return allExpenses;
   } catch (error) {
     console.error('Ошибка при загрузке трат из таблицы:', error);
     return [];

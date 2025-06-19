@@ -39,8 +39,10 @@ export function useCreateSpreadsheet(token?: string) {
       const data = await res.json();
       const spreadsheetId = data.spreadsheetId;
 
-      // Создаем простой лист для расходов
-      await createSimpleExpenseSheet(token, spreadsheetId, 'Расходы');
+      // Создаем лист для текущего месяца
+      const date = new Date();
+      const monthYear = `${date.toLocaleString('ru', { month: 'long' })} ${date.getFullYear()}`;
+      await createSimpleExpenseSheet(token, spreadsheetId, monthYear);
 
       return { spreadsheetId, url: data.spreadsheetUrl };
     } catch (e: any) {
