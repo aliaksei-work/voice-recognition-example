@@ -50,6 +50,7 @@ export interface ExpenseData {
   currency: string;
   category: string;
   subcategory: string;
+  description?: string;
   location?: string;
   date?: string;
   time?: string;
@@ -169,6 +170,7 @@ export const useGeminiAPI = () => {
           currency,
           category,
           subcategory: 'Прочее',
+          description: text,
           date: new Date().toISOString().split('T')[0],
           time: new Date().toLocaleTimeString(),
           priority: 'medium',
@@ -192,6 +194,7 @@ Return a JSON object with these fields:
   "currency": string,
   "category": string, // one of: ${Object.keys(CATEGORIES).join(', ')}
   "subcategory": string, // one of: ${Object.values(CATEGORIES).flat().join(', ')}
+  "description": string (brief description of the expense),
   "location": string (if mentioned - city, store, restaurant name),
   "date": string (YYYY-MM-DD format, use today if not mentioned),
   "time": string (HH:MM format, use current time if not mentioned),
@@ -265,6 +268,7 @@ If a field is not mentioned or unclear, use null or appropriate default values.
           currency: expenseData.currency || getCurrencyFromText(text),
           category: expenseData.category || getCategoryFromText(text),
           subcategory: expenseData.subcategory || '',
+          description: expenseData.description || text,
           location: expenseData.location || undefined,
           date: expenseData.date || new Date().toISOString().split('T')[0],
           time: expenseData.time || new Date().toLocaleTimeString(),

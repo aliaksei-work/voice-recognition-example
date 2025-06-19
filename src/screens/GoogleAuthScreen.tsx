@@ -29,7 +29,7 @@ export const GoogleAuthScreen: React.FC<{ onAuth: (token: string) => void }> = (
       
       if (tokens.accessToken) {
         console.log('Calling onAuth with token...');
-        onAuth(tokens.accessToken);
+      onAuth(tokens.accessToken);
       } else {
         Alert.alert('Ошибка', 'Не удалось получить токен доступа');
       }

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExpenseData } from './useGeminiAPI';
-import { createMonthSheetTemplate, updateExpenseCellInSheet, normalizeCategoryAndSubcategory } from '../utils/sheetsUtils';
+import { appendExpenseToSheet, loadExpensesFromSheet } from '../utils/sheetsUtils';
 
 export interface Expense extends ExpenseData {
   id: string;
@@ -16,17 +16,50 @@ export const useExpenses = (googleAccessToken?: string, spreadsheetId?: string) 
 
   const loadExpenses = useCallback(async () => {
     try {
+      // Сначала загружаем из локального хранилища
       const storedExpenses = await AsyncStorage.getItem(STORAGE_KEY);
+      let localExpenses: Expense[] = [];
       if (storedExpenses) {
-        const parsedExpenses = JSON.parse(storedExpenses);
-        setExpenses(parsedExpenses);
+        localExpenses = JSON.parse(storedExpenses);
+      }
+
+      // Если есть доступ к Google Sheets, синхронизируем с таблицей
+      if (googleAccessToken && spreadsheetId) {
+        try {
+          const sheetExpenses = await loadExpensesFromSheet(googleAccessToken, spreadsheetId);
+          
+          // Объединяем локальные и табличные данные, убирая дубликаты
+          const allExpenses = [...localExpenses];
+          sheetExpenses.forEach((sheetExpense: Expense) => {
+            const exists = allExpenses.find(local => 
+              local.timestamp === sheetExpense.timestamp && 
+              local.amount === sheetExpense.amount &&
+              local.description === sheetExpense.description
+            );
+            if (!exists) {
+              allExpenses.push(sheetExpense);
+            }
+          });
+
+          // Сортируем по времени (новые сверху)
+          allExpenses.sort((a, b) => b.timestamp - a.timestamp);
+          
+          setExpenses(allExpenses);
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(allExpenses));
+        } catch (error) {
+          console.warn('Ошибка синхронизации с Google Sheets:', error);
+          // Если синхронизация не удалась, используем локальные данные
+          setExpenses(localExpenses);
+        }
+      } else {
+        setExpenses(localExpenses);
       }
     } catch (error) {
       console.error('Error loading expenses:', error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [googleAccessToken, spreadsheetId]);
 
   // Load expenses from storage on mount
   useEffect(() => {
@@ -71,36 +104,11 @@ export const useExpenses = (googleAccessToken?: string, spreadsheetId?: string) 
         // Проверяем существование таблицы
         const exists = await checkSpreadsheetExists(googleAccessToken, spreadsheetId);
         if (!exists) {
-          // Если таблица не существует, выбрасываем ошибку, которая будет перехвачена в ExpenseTracker
           throw new Error('SPREADSHEET_NOT_FOUND');
         }
 
-        const date = new Date(newExpense.timestamp);
-        const monthYear = `${date.toLocaleString('ru', { month: 'long' })} ${date.getFullYear()}`;
-        // Нормализуем категорию и подкатегорию
-        const { category, subcategory } = normalizeCategoryAndSubcategory(newExpense.category, newExpense.subcategory);
-        // Пытаемся обновить ячейку, если листа нет — создаём шаблон и пробуем снова
-        try {
-          await updateExpenseCellInSheet(
-            googleAccessToken,
-            spreadsheetId,
-            monthYear,
-            category,
-            subcategory,
-            newExpense.amount
-          );
-        } catch (err) {
-          // Если ошибка — возможно, листа нет, создаём шаблон и пробуем снова
-          await createMonthSheetTemplate(googleAccessToken, spreadsheetId, monthYear);
-          await updateExpenseCellInSheet(
-            googleAccessToken,
-            spreadsheetId,
-            monthYear,
-            category,
-            subcategory,
-            newExpense.amount
-          );
-        }
+        // Добавляем трату в таблицу
+        await appendExpenseToSheet(googleAccessToken, spreadsheetId, newExpense);
       } catch (e) {
         if (e instanceof Error && e.message === 'SPREADSHEET_NOT_FOUND') {
           throw e; // Пробрасываем ошибку дальше для обработки в ExpenseTracker
@@ -128,7 +136,7 @@ export const useExpenses = (googleAccessToken?: string, spreadsheetId?: string) 
     
     expenses.forEach(expense => {
       const category = expense.category;
-      const date = expense.date || new Date(expense.timestamp).toISOString().split('T')[0];
+      const date = new Date(expense.timestamp).toISOString().split('T')[0];
       
       if (!grouped[category]) {
         grouped[category] = {};
@@ -164,23 +172,24 @@ export const useExpenses = (googleAccessToken?: string, spreadsheetId?: string) 
   // Get total amount for a category on a specific date
   const getCategoryDateTotal = useCallback((category: string, date: string) => {
     return expenses
-      .filter(expense => expense.category === category && expense.date === date)
+      .filter(expense => expense.category === category && 
+        new Date(expense.timestamp).toISOString().split('T')[0] === date)
       .reduce((sum, expense) => sum + expense.amount, 0);
   }, [expenses]);
 
   // Get all categories
   const getCategories = useCallback(() => {
-    const categories = [...new Set(expenses.map(expense => expense.category))];
+    const categories = Array.from(new Set(expenses.map(expense => expense.category)));
     return categories.sort();
   }, [expenses]);
 
   // Get dates for a category
   const getCategoryDates = useCallback((category: string) => {
-    const dates = [...new Set(
+    const dates = Array.from(new Set(
       expenses
         .filter(expense => expense.category === category)
-        .map(expense => expense.date || new Date(expense.timestamp).toISOString().split('T')[0])
-    )];
+        .map(expense => new Date(expense.timestamp).toISOString().split('T')[0])
+    ));
     return dates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
   }, [expenses]);
 
