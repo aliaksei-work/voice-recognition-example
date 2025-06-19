@@ -18,6 +18,8 @@ import {ExpenseHistory} from './components/ExpenseHistory';
 import {ModeSelector, AppMode} from './components/ModeSelector';
 import {SpreadsheetLink} from './components/SpreadsheetLink';
 import {SyncButtons} from './components/SyncButtons';
+import {SettingsScreen} from './components/SettingsScreen';
+import {useAppLanguage} from './hooks/useAppLanguage';
 import { useSpreadsheetId } from './hooks/useSpreadsheetId';
 import { useCreateSpreadsheet } from './hooks/useCreateSpreadsheet';
 import { ExpenseData } from './hooks/useGeminiAPI';
@@ -28,9 +30,11 @@ interface ExpenseTrackerProps {
 }
 
 const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spreadsheetId: propSpreadsheetId }) => {
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>('ru-RU');
   const [currentMode, setCurrentMode] = useState<AppMode>('add');
   const [recreatingSpreadsheet, setRecreatingSpreadsheet] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const { currentLanguage, changeLanguage, isLoading: languageLoading } = useAppLanguage();
 
   const { spreadsheetId, setSpreadsheetId, loading: idLoading } = useSpreadsheetId();
   const { createSpreadsheet, loading: createLoading, error: createError } = useCreateSpreadsheet(googleAccessToken);
@@ -47,7 +51,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
   }, [idLoading, spreadsheetId, googleAccessToken, createSpreadsheet, setSpreadsheetId]);
 
   const {state, startRecognizing, stopRecognizing} =
-    useVoiceRecognition(selectedLanguage);
+    useVoiceRecognition(currentLanguage);
 
   const {isListening, hasResults, hasError} = useListeningState(state);
 
@@ -95,8 +99,12 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
   const {processVoiceInput, isProcessing, processingError} =
     useVoiceExpenseRecognition(addExpenseWithSpreadsheetCheck);
 
-  const handleLanguageChange = (language: Language) => {
-    setSelectedLanguage(language);
+  const handleLanguageChange = async (language: Language) => {
+    try {
+      await changeLanguage(language);
+    } catch (error) {
+      console.error('Ошибка изменения языка:', error);
+    }
   };
 
   const handleModeChange = (mode: AppMode) => {
@@ -107,10 +115,29 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
     await processVoiceInput(text);
   };
 
+  const handleSettingsPress = () => {
+    setShowSettings(true);
+  };
+
+  const handleSettingsBack = () => {
+    setShowSettings(false);
+  };
+
+  // Показываем экран настроек
+  if (showSettings) {
+    return (
+      <SettingsScreen
+        currentLanguage={currentLanguage}
+        onLanguageChange={handleLanguageChange}
+        onBack={handleSettingsBack}
+      />
+    );
+  }
+
   const renderAddMode = () => (
     <>
       <LanguageSelector
-        selectedLanguage={selectedLanguage}
+        selectedLanguage={currentLanguage}
         onLanguageChange={handleLanguageChange}
         isListening={isListening}
       />
@@ -168,11 +195,11 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ googleAccessToken, spre
 
   return (
     <SafeAreaView style={styles.container}>
-      <VoiceHeader />
-      {(idLoading || createLoading) && (
+      <VoiceHeader onSettingsPress={handleSettingsPress} />
+      {(idLoading || createLoading || languageLoading) && (
         <View style={{alignItems: 'center', margin: 16}}>
           <ActivityIndicator size="large" color="#00e6d6" />
-          <Text style={{marginTop: 8}}>Создаём Google таблицу...</Text>
+          <Text style={{marginTop: 8}}>Загрузка...</Text>
         </View>
       )}
       {createError && (

@@ -1,9 +1,15 @@
 import React from 'react';
 import {View, Text, StyleSheet, Image} from 'react-native';
+import {BurgerMenu} from '../../expenses/components/BurgerMenu';
 
-export const VoiceHeader: React.FC = () => {
+interface VoiceHeaderProps {
+  onSettingsPress: () => void;
+}
+
+export const VoiceHeader: React.FC<VoiceHeaderProps> = ({onSettingsPress}) => {
   return (
     <View style={styles.container}>
+      <BurgerMenu onSettingsPress={onSettingsPress} />
       <View style={styles.logoContainer}>
         <Image
           source={require('../../../assets/images/logo.png')}
@@ -25,6 +31,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingHorizontal: 20,
     paddingTop: 16,
+    position: 'relative',
   },
   logoContainer: {
     flexDirection: 'row',
