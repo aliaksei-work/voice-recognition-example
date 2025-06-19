@@ -1,12 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import {View, Text, StyleSheet, Image} from 'react-native';
 
 export const VoiceHeader: React.FC = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🎤 Voice Recognition</Text>
+      <View style={styles.logoContainer}>
+        <Image
+          source={require('../../../assets/images/logo.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+        <Text style={styles.logoText}>Orbitric</Text>
+      </View>
       <Text style={styles.subtitle}>
-        Select language and start speaking to test voice recognition
+        Умный учет расходов с голосовым вводом
       </Text>
     </View>
   );
@@ -17,13 +24,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
     paddingHorizontal: 20,
+    paddingTop: 16,
   },
-  title: {
-    fontSize: 28,
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  logoImage: {
+    width: 40,
+    height: 40,
+    marginRight: 12,
+  },
+  logoText: {
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#2c3e50',
-    marginBottom: 8,
-    textAlign: 'center',
+    letterSpacing: 1,
   },
   subtitle: {
     fontSize: 16,
@@ -31,4 +48,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-}); 
+});
