@@ -29,6 +29,7 @@ import {useAppLanguage} from './hooks/useAppLanguage';
 import {useSpreadsheetId} from './hooks/useSpreadsheetId';
 import {useCreateSpreadsheet} from './hooks/useCreateSpreadsheet';
 import {ExpenseData} from './hooks/useGeminiAPI';
+import {ExpenseCategories} from './components/ExpenseCategories';
 
 interface ExpenseTrackerProps {
   googleAccessToken?: string;
@@ -42,6 +43,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [currentMode, setCurrentMode] = useState<AppMode>('add');
   const [recreatingSpreadsheet, setRecreatingSpreadsheet] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const {
     currentLanguage,
@@ -158,6 +160,10 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     setShowSettings(false);
   };
 
+  const handleCategoryPress = (category: string) => {
+    setSelectedCategory(category);
+  };
+
   // Показываем экран настроек
   if (showSettings) {
     return (
@@ -196,15 +202,21 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         />
       )}
 
-      {expenses.length > 0 && (
-        <>
-          <ExpenseStats expenses={expenses} />
+      <View style={styles.categoriesContainer}>
+        <ExpenseCategories
+          expenses={expenses}
+          onCategoryPress={handleCategoryPress}
+        />
+      </View>
+
+      {selectedCategory && (
+        <View style={styles.selectedCategoryContainer}>
           <ExpensesList
-            expenses={expenses.slice(0, 5)}
+            expenses={expenses.filter(e => e.category === selectedCategory)}
             onRemoveExpense={removeExpense}
-            onClearAll={clearExpenses}
+            onClearAll={() => setSelectedCategory(null)}
           />
-        </>
+        </View>
       )}
     </>
   );
@@ -240,12 +252,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       <ModeSelector currentMode={currentMode} onModeChange={handleModeChange} />
 
       {currentMode === 'add' ? (
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
-          {renderAddMode()}
-        </ScrollView>
+        <View style={styles.mainContainer}>{renderAddMode()}</View>
       ) : (
         <View style={styles.historyContainer}>{renderHistoryMode()}</View>
       )}
@@ -256,22 +263,33 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#004953',
   },
-  scrollView: {
+  mainContainer: {
     flex: 1,
+    position: 'relative',
   },
-  scrollContent: {
-    flexGrow: 1,
+  categoriesContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  selectedCategoryContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 73, 83, 0.95)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 16,
-    paddingTop: 20,
-  },
-  errorContainer: {
-    marginTop: 16,
+    maxHeight: '50%',
   },
   historyContainer: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  errorContainer: {
+    marginTop: 16,
   },
 });
 
