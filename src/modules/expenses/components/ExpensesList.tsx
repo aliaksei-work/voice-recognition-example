@@ -20,33 +20,38 @@ export const ExpensesList: React.FC<ExpensesListProps> = ({
     });
   };
 
-  const renderExpenseItem = ({ item }: { item: Expense }) => (
-    <View style={styles.expenseItem}>
-      <View style={styles.expenseContent}>
-        <View style={styles.expenseHeader}>
-          <Text style={styles.expenseDescription}>{item.description}</Text>
-          <Text style={styles.expenseAmount}>
-            {item.amount.toFixed(2)} {item.currency}
-          </Text>
+  const renderExpenseItem = ({ item }: { item: Expense }) => {
+    // Определяем, что показывать как описание
+    const displayDescription = item.description || item.notes || item.merchant || `${item.category} - ${item.subcategory}`;
+
+    return (
+      <View style={styles.expenseItem}>
+        <View style={styles.expenseContent}>
+          <View style={styles.expenseHeader}>
+            <Text style={styles.expenseDescription}>{displayDescription}</Text>
+            <Text style={styles.expenseAmount}>
+              {item.amount.toFixed(2)} {item.currency}
+            </Text>
+          </View>
+          
+          <View style={styles.expenseDetails}>
+            <Text style={styles.expenseTime}>{formatTime(item.timestamp)}</Text>
+            <Text style={styles.expenseCategory}>{item.category}</Text>
+            {item.location && (
+              <Text style={styles.expenseLocation}>📍 {item.location}</Text>
+            )}
+          </View>
         </View>
         
-        <View style={styles.expenseDetails}>
-          <Text style={styles.expenseTime}>{formatTime(item.timestamp)}</Text>
-          <Text style={styles.expenseCategory}>{item.category}</Text>
-          {item.location && (
-            <Text style={styles.expenseLocation}>📍 {item.location}</Text>
-          )}
-        </View>
+        <TouchableOpacity
+          style={styles.removeButton}
+          onPress={() => onRemoveExpense(item.id)}
+        >
+          <Text style={styles.removeButtonText}>×</Text>
+        </TouchableOpacity>
       </View>
-      
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => onRemoveExpense(item.id)}
-      >
-        <Text style={styles.removeButtonText}>×</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   if (expenses.length === 0) {
     return null;

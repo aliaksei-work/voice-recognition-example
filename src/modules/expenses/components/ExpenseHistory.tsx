@@ -64,45 +64,61 @@ export const ExpenseHistory: React.FC<ExpenseHistoryProps> = ({
     setExpandedDates(newExpanded);
   };
 
-  const renderExpenseItem = ({ item }: { item: Expense }) => (
-    <View style={styles.expenseItem}>
-      <View style={styles.expenseContent}>
-        <View style={styles.expenseHeader}>
-          <Text style={styles.expenseDescription}>{item.description}</Text>
-          <Text style={styles.expenseAmount}>
-            {item.amount.toFixed(2)} {item.currency}
-          </Text>
-        </View>
-        
-        <View style={styles.expenseDetails}>
-          <Text style={styles.expenseTime}>{formatTime(item.timestamp)}</Text>
-          {item.location && (
-            <Text style={styles.expenseLocation}>📍 {item.location}</Text>
-          )}
-          {item.paymentMethod && (
-            <Text style={styles.expensePayment}>💳 {item.paymentMethod}</Text>
-          )}
-        </View>
-        
-        {item.tags && item.tags.length > 0 && (
-          <View style={styles.tagsContainer}>
-            {item.tags.slice(0, 2).map((tag, index) => (
-              <View key={index} style={styles.tag}>
-                <Text style={styles.tagText}>#{tag}</Text>
-              </View>
-            ))}
+  const renderExpenseItem = ({ item }: { item: Expense }) => {
+    // Отладочная информация
+    console.log('Expense item:', {
+      id: item.id,
+      description: item.description,
+      category: item.category,
+      subcategory: item.subcategory,
+      amount: item.amount,
+      notes: item.notes,
+      merchant: item.merchant
+    });
+
+    // Определяем, что показывать как описание
+    const displayDescription = item.description || item.notes || item.merchant || `${item.category} - ${item.subcategory}`;
+
+    return (
+      <View style={styles.expenseItem}>
+        <View style={styles.expenseContent}>
+          <View style={styles.expenseHeader}>
+            <Text style={styles.expenseDescription}>{displayDescription}</Text>
+            <Text style={styles.expenseAmount}>
+              {item.amount.toFixed(2)} {item.currency}
+            </Text>
           </View>
-        )}
+          
+          <View style={styles.expenseDetails}>
+            <Text style={styles.expenseTime}>{formatTime(item.timestamp)}</Text>
+            {item.location && (
+              <Text style={styles.expenseLocation}>📍 {item.location}</Text>
+            )}
+            {item.paymentMethod && (
+              <Text style={styles.expensePayment}>💳 {item.paymentMethod}</Text>
+            )}
+          </View>
+          
+          {item.tags && item.tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {item.tags.slice(0, 2).map((tag, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>#{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+        
+        <TouchableOpacity
+          style={styles.removeButton}
+          onPress={() => onRemoveExpense(item.id)}
+        >
+          <Text style={styles.removeButtonText}>×</Text>
+        </TouchableOpacity>
       </View>
-      
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => onRemoveExpense(item.id)}
-      >
-        <Text style={styles.removeButtonText}>×</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   const renderDateSection = (category: string, date: string, expenses: Expense[]) => {
     const isExpanded = expandedDates.has(date);
