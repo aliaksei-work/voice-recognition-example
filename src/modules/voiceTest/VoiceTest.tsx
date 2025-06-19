@@ -5,7 +5,6 @@ import {useListeningState} from './hooks/useListeningState';
 import {VoiceHeader} from './components/VoiceHeader';
 import {VoiceStatus} from './components/VoiceStatus';
 import {VoiceControls} from './components/VoiceControls';
-import {LanguageSelector} from './components/LanguageSelector';
 
 const VoiceTest: React.FC = () => {
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('en-US');
@@ -26,12 +25,6 @@ const VoiceTest: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         <VoiceHeader />
-
-        <LanguageSelector
-          selectedLanguage={selectedLanguage}
-          onLanguageChange={handleLanguageChange}
-          isListening={isListening}
-        />
 
         <VoiceControls
           onStart={startRecognizing}
